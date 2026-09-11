@@ -8,7 +8,7 @@ export async function getDb(): Promise<Client> {
   return globalDb.inventoryDb;
 }
 async function initialize() {
-  const url = process.env.DATABASE_URL || 'file:instance/inventory-next.db';
+  const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || 'file:instance/inventory-next.db';
   if (process.env.VERCEL && url.startsWith('file:')) throw new Error('Vercel에서는 원격 DATABASE_URL을 설정하세요.');
   if (url === 'file:instance/inventory-next.db') {
     mkdirSync('instance', { recursive: true });
@@ -16,7 +16,7 @@ async function initialize() {
       throw new Error('먼저 npm run db:prepare 명령으로 기존 DB를 복제하세요.');
     }
   }
-  const db = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
+  const db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN });
   try {
     await db.batch([
       'CREATE TABLE IF NOT EXISTS category (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, display_name TEXT, parent_id INTEGER REFERENCES category(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',

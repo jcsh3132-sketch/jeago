@@ -60,15 +60,26 @@ Chrome이 설치된 환경에서는 `npm.cmd run build` 후 `npm.cmd run test:br
 
 ## GitHub · Vercel 연결 시
 
-현재 단계는 Next.js 전환이며 GitHub 업로드/배포는 하지 않았습니다. Vercel에서는 로컬 SQLite 파일에 영구 저장할 수 없으므로 원격 libSQL/Turso 데이터베이스를 연결하도록 준비했습니다.
+GitHub 저장소는 `jcsh3132-sketch/jeago`, Vercel 프로젝트는 `jin-e756/jeago`입니다. Vercel에서는 로컬 SQLite 파일에 영구 저장할 수 없으므로 원격 libSQL/Turso 데이터베이스를 사용합니다.
 
 1. 원격 DB를 만들고 실제 사용할 `inventory-next.db` 데이터를 가져옵니다. ID와 카테고리 키를 보존하세요.
-2. Vercel 환경 변수에 `DATABASE_URL=libsql://...`, `DATABASE_AUTH_TOKEN=...`을 등록합니다. 토큰은 Git에 커밋하지 않습니다.
+2. Vercel Marketplace 연동이 제공하는 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`을 사용합니다. 직접 설정하는 `DATABASE_URL`, `DATABASE_AUTH_TOKEN`도 지원합니다. 토큰은 Git에 커밋하지 않습니다.
 3. GitHub 저장소를 연결하고 Framework Preset을 Next.js로 선택합니다.
-4. 배포 전에 사용자 인증 또는 배포 접근 제한을 추가해야 합니다. 기존 프로그램과 마찬가지로 현재 앱에는 로그인 기능이 없습니다. Origin 검사는 사용자 인증을 대신하지 않습니다.
+4. Vercel의 Deployment Protection → Vercel Authentication에서 **All Deployments**를 유지합니다. 현재 앱 자체에는 로그인 기능이 없으므로 배포 보호를 해제하면 재고 조회와 변경 API가 공개됩니다. Origin 검사는 사용자 인증을 대신하지 않습니다.
 
-`.env.example`에 연결 예시가 있습니다. Vercel에서 로컬 DB가 지정되면 실행을 중단해 임시 파일에 재고를 잘못 저장하지 않도록 했습니다. 원격 DB 연결과 실제 배포는 아직 검증하지 않았습니다.
+`.env.example`에 연결 예시가 있습니다. Vercel에서 로컬 DB가 지정되면 실행을 중단해 임시 파일에 재고를 잘못 저장하지 않도록 했습니다.
 
-`.gitignore`는 DB·환경 변수·빌드 결과를 제외합니다. 다만 전환 전에 이미 Git 스테이징되어 있던 `instance/inventory.db`, `__pycache__` 등은 ignore로 자동 해제되지 않으므로 **첫 업로드 전에 스테이징 목록을 정리**해야 합니다. 기존 Git 스테이징 상태는 이번 전환에서 변경하지 않았습니다.
+`.gitignore`는 DB·환경 변수·빌드 결과를 제외합니다. 기존에 스테이징되었던 DB와 Python 캐시는 첫 커밋 전에 제외했으며 원본 파일은 PC에 보존했습니다.
+
+### 최초 데이터 이전
+
+대상 DB가 비어 있을 때만 실행합니다. 기존 테이블이 있으면 덮어쓰지 않고 중단합니다. 환경변수 파일은 Git에서 제외되는 `.env.migration.local` 등의 이름을 사용합니다.
+
+```powershell
+node scripts/migrate-database.mjs --env .env.migration.local
+node scripts/migrate-database.mjs --env .env.migration.local --apply
+```
+
+첫 명령은 대상이 비어 있는지와 이전할 테이블별 행 수를 확인합니다. `--apply`는 SQLite 백업 API로 원본의 스냅샷을 `work/`에 만든 뒤 스키마와 모든 행을 한 트랜잭션으로 이전합니다. 모든 열의 값과 외래 키를 검증한 후에만 확정합니다. 이전 후 로컬 DB와 Turso는 자동 동기화되지 않으므로 운영 입력은 배포 사이트 한쪽에서 진행하세요.
 
 공식 참고: [Next.js 설치](https://nextjs.org/docs/app/getting-started/installation), [Vercel의 SQLite 제한](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel), [libSQL TypeScript 클라이언트](https://tursodatabase.github.io/libsql-client-ts/).
