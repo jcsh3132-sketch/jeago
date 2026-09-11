@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}재고 관리{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260826_restore_v7">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <div class="brand-mark">I</div>
+            <div>
+                <strong>INVENTORY</strong>
+                <span>Internal Stock Manager</span>
+            </div>
+        </div>
+        <nav class="side-nav">
+            <a href="{{ url_for('index') }}" class="side-link {% if request.endpoint == 'index' %}active{% endif %}">
+                <span class="nav-icon">▦</span><span>재고 현황</span>
+            </a>
+            <a href="{{ url_for('add_item', category=request.args.get('category')) if request.endpoint == 'index' and request.args.get('category') else url_for('add_item') }}" class="side-link {% if request.endpoint == 'add_item' %}active{% endif %}">
+                <span class="nav-icon">＋</span><span>모델 등록</span>
+            </a>
+            <a href="{{ url_for('transaction_history_all') }}" class="side-link {% if request.endpoint == 'transaction_history_all' %}active{% endif %}">
+                <span class="nav-icon">↻</span><span>입출고 내역</span>
+            </a>
+            <a href="{{ url_for('manage_categories') }}" class="side-link {% if request.endpoint in ['manage_categories', 'add_category', 'delete_category', 'add_main_category', 'add_device_category', 'add_leaf_category', 'rename_main', 'rename_device', 'rename_leaf', 'move_device', 'move_leaf', 'delete_main', 'delete_device', 'delete_leaf'] %}active{% endif %}">
+                <span class="nav-icon">≡</span><span>카테고리 관리</span>
+            </a>
+            <a href="{{ url_for('partners') }}" class="side-link {% if request.endpoint in ['partners','add_partner','edit_partner','delete_partner'] %}active{% endif %}">
+                <span class="nav-icon">◎</span><span>거래처 관리</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="status-dot"></span>
+            <div><b>내부 운영 시스템</b><small>정상 운영 중</small></div>
+        </div>
+    </aside>
+
+    <nav class="mobile-nav" aria-label="모바일 메뉴">
+        <a href="{{ url_for('index') }}" class="mobile-nav-link {% if request.endpoint == 'index' %}active{% endif %}"><span>▦</span><b>재고</b></a>
+        <a href="{{ url_for('add_item', category=request.args.get('category')) if request.endpoint == 'index' and request.args.get('category') else url_for('add_item') }}" class="mobile-nav-link {% if request.endpoint == 'add_item' %}active{% endif %}"><span>＋</span><b>모델등록</b></a>
+        <a href="{{ url_for('transaction_history_all') }}" class="mobile-nav-link {% if request.endpoint == 'transaction_history_all' %}active{% endif %}"><span>↻</span><b>입출고</b></a>
+        <a href="{{ url_for('manage_categories') }}" class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('manage_categories') %}active{% endif %}"><span>≡</span><b>카테고리</b></a>
+        <a href="{{ url_for('partners') }}" class="mobile-nav-link {% if request.endpoint in ['partners','add_partner','edit_partner','delete_partner'] %}active{% endif %}"><span>◎</span><b>거래처</b></a>
+    </nav>
+
+    <section class="app-main">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">INVENTORY MANAGEMENT</p>
+                <h1>{% block page_title %}재고 관리{% endblock %}</h1>
+            </div>
+            <div class="top-actions">
+                <a href="{{ url_for('index') }}" class="top-btn ghost">재고 목록</a>
+                <a href="{{ url_for('add_item', category=request.args.get('category')) if request.endpoint == 'index' and request.args.get('category') else url_for('add_item') }}" class="top-btn primary">+ 모델 추가</a>
+            </div>
+        </header>
+
+        <main class="content-area">
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div class="flash-stack">
+                {% for message in messages %}<div class="flash-message">{{ message }}</div>{% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </section>
+</div>
+</body>
+</html>

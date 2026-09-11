@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}입출고 내역{% endblock %}
+{% block page_title %}입출고 내역{% endblock %}
+{% block content %}
+<section class="data-card history-card">
+  <div class="section-head">
+    <div><span class="section-kicker">TRANSACTION HISTORY</span><h2>전체 입출고 내역</h2><p>모든 모델의 입고·출고 처리 기록을 최신순으로 확인합니다.</p></div>
+    <form method="get" class="history-filter">
+      <select name="type" aria-label="입출고 구분"><option value="all" {% if tx_type=='all' %}selected{% endif %}>전체</option><option value="입고" {% if tx_type=='입고' %}selected{% endif %}>입고</option><option value="출고" {% if tx_type=='출고' %}selected{% endif %}>출고</option></select>
+      <div class="search-box"><span>⌕</span><input name="q" value="{{ q }}" placeholder="모델명 · 담당자 · 출고업체 검색"></div>
+      <button class="top-btn ghost" type="submit">검색</button>
+    </form>
+  </div>
+  <div class="table-wrap"><table class="history-table"><thead><tr><th>처리일시</th><th>모델명</th><th>유형</th><th>수량</th><th>출고업체</th><th>담당자</th></tr></thead><tbody>
+  {% for t in rows %}{% set item=item_map.get(t.item_id) %}<tr><td data-label="처리일시">{{ t.date.strftime('%Y-%m-%d %H:%M') if t.date else '-' }}</td><td data-label="모델명"><strong>{{ item.name if item else '삭제된 모델' }}</strong>{% if item %}<small class="subtle-id">#{{ '%04d'|format(item.id) }}</small>{% endif %}</td><td data-label="유형">{% if t.transaction_type=='입고' %}<span class="stock-badge good">입고</span>{% else %}<span class="stock-badge out">출고</span>{% endif %}</td><td data-label="수량"><strong>{{ t.quantity }}</strong></td><td data-label="출고업체">{{ t.customer_name if t.transaction_type == '출고' and t.customer_name else '-' }}</td><td data-label="담당자">{{ t.manager }}</td></tr>{% else %}<tr><td colspan="6"><div class="empty-state"><h3>입출고 내역이 없습니다.</h3></div></td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}
