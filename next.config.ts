@@ -1,7 +1,10 @@
 import type { NextConfig } from 'next';
 const config: NextConfig = {
   serverExternalPackages: ['@libsql/client'],
-  outputFileTracingExcludes: { '*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'] },
+  // Apply only to route bundles; '*' also matches Next's internal server trace
+  // where substring matching would incorrectly exclude its "framework" folder.
+  outputFileTracingExcludes: { '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'] },
+  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'] },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
