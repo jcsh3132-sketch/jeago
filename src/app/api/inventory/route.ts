@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { InputError, mutate } from '@/lib/inventory';
+import { ACTIONS, ConflictError, InputError, mutate } from '@/lib/inventory';
 export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
@@ -11,9 +11,12 @@ export async function POST(request: NextRequest) {
   try {
     const fields = await request.json();
     if (!fields || typeof fields !== 'object' || Array.isArray(fields)) throw new InputError('입력 형식이 올바르지 않습니다.');
+    if (!ACTIONS.includes(fields.action)) throw new InputError('지원하지 않는 요청입니다.');
+    if (typeof fields.request_id !== 'string' || !/^[a-f0-9-]{36}$/i.test(fields.request_id)) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
+    if (!fields.action.endsWith('.add') && fields.action !== 'trash.restore' && fields.expected_version === undefined) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
     return NextResponse.json({ ok: true, ...await mutate(fields) });
   } catch (e) {
-    if (e instanceof InputError || e instanceof SyntaxError) return NextResponse.json({ ok: false, message: e.message }, { status: 400 });
+    if (e instanceof InputError || e instanceof SyntaxError) return NextResponse.json({ ok: false, message: e.message }, { status: e instanceof ConflictError ? 409 : 400 });
     console.error('Inventory mutation failed:', e);
     return NextResponse.json({ ok: false, message: '저장하지 못했습니다. 잠시 후 다시 시도하세요.' }, { status: 500 });
   }

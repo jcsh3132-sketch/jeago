@@ -10,6 +10,8 @@ const scratch = resolve('work');
 mkdirSync(scratch, { recursive: true });
 const dir = mkdtempSync(join(scratch, 'test-db-'));
 process.env.DATABASE_URL = pathToFileURL(join(dir, 'test.db')).href;
+process.env.JEAGO_TEST_MODE = '1';
+process.env.JEAGO_TEST_DATABASE_URL = process.env.DATABASE_URL;
 // Keep the isolated test DB in ignored work/ for debugging; never touch operational DBs.
 after(async () => { (await getDb()).close(); });
 test('inventory lifecycle, rollback, validation, concurrency, and hierarchy', async t => {

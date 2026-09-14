@@ -35,7 +35,15 @@ npm.cmd run dev
 - 거래처 등록/수정/검색/삭제
 - 모바일 메뉴 및 반응형 화면, 목록 드래그 정렬(현재 화면에서만 유지)
 
-부족 기준은 슬라이더/숫자 입력 후 **저장**을 눌러 반영합니다. DB의 기존 시간과 새 이력 시간은 UTC이며 이력 화면에도 기준을 표시합니다. 데이터 입력은 SQL 파라미터를 사용하고, 재고 수량 변경과 입출고 이력 저장은 하나의 쓰기 트랜잭션으로 처리합니다. 카테고리와 모델 삭제 시 관련 입출고 이력도 삭제되는 기존 동작을 유지합니다.
+부족 기준은 슬라이더/숫자 입력 후 **저장**을 눌러 반영합니다. DB의 기존 시간과 새 이력 시간은 UTC이며 이력 화면에도 기준을 표시합니다. 데이터 입력은 SQL 파라미터를 사용하고, 재고 수량 변경과 입출고 이력 저장은 하나의 쓰기 트랜잭션으로 처리합니다.
+
+### 공용 운영 보강 (1.1.0)
+
+- 저장 요청 번호를 DB에 함께 기록하여 통신 재시도로 같은 입출고가 중복 처리되지 않습니다. 연결이 끊기면 **저장 결과 확인**을 누르세요. 같은 탭을 새로고침해도 미확인 요청을 복구합니다. 확인 전에는 탭을 닫거나 브라우저 데이터를 지우지 마세요.
+- 다른 사람이 먼저 수정한 항목은 저장을 막고 **최신 내용 불러오기**를 안내합니다. 최신 내용을 확인하고 다시 입력하세요.
+- 화면은 15초 간격과 다시 활성화될 때 갱신합니다. 입력 중이거나 저장 결과 확인 중에는 입력 내용을 보존하기 위해 자동 갱신을 잠시 멈춥니다.
+- 모델·카테고리·거래처 삭제는 **휴지통**으로 이동합니다. 모델 ID, 수량, 입출고 이력은 보존하며 복구 시 함께 돌아옵니다. 카테고리는 상위 항목을 먼저 복구해야 하고 같은 위치의 이름 충돌은 먼저 해결해야 합니다.
+- 이전 버전에서 영구 삭제한 데이터는 휴지통으로 복구할 수 없습니다. 새 배포의 첫 DB 연결에서 기존 테이블에 필요한 열과 복구 테이블만 추가합니다.
 
 ## 폴더
 
@@ -56,7 +64,11 @@ npm.cmd start
 
 Chrome이 설치된 환경에서는 `npm.cmd run build` 후 `npm.cmd run test:browser`로 실제 화면 흐름도 검증할 수 있습니다. 브라우저 테스트는 현재 Next.js DB를 `work/`에 별도로 복제하여 3100 포트에서 실행합니다. 운영 DB에 테스트 입력을 쓰지 않습니다. 진단용 테스트 DB와 스크린샷은 Git에서 제외된 `work/`에 남습니다.
 
+테스트 실행기는 상속된 DB 주소·토큰을 제거합니다. `JEAGO_TEST_MODE=1`에서는 `work/` 아래의 명시적인 `JEAGO_TEST_DATABASE_URL=file:...`만 허용하고 Turso 환경변수는 사용하지 않습니다.
+
 `GET /health`는 DB 연결까지 확인합니다. 변경 API는 `POST /api/inventory`이며 동일 출처 JSON 요청만 허용합니다.
+
+모든 변경 요청에는 UUID `request_id`가 필요하며, 기존 항목 변경에는 화면에서 읽은 `expected_version`도 필요합니다. 동일 요청 번호는 동일한 본문으로만 재시도합니다. 충돌은 HTTP 409로 안내합니다.
 
 ## GitHub · Vercel 연결 시
 
@@ -65,7 +77,7 @@ GitHub 저장소는 `jcsh3132-sketch/jeago`, Vercel 프로젝트는 `jin-e756/je
 1. 원격 DB를 만들고 실제 사용할 `inventory-next.db` 데이터를 가져옵니다. ID와 카테고리 키를 보존하세요.
 2. Vercel Marketplace 연동이 제공하는 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`을 사용합니다. 직접 설정하는 `DATABASE_URL`, `DATABASE_AUTH_TOKEN`도 지원합니다. 토큰은 Git에 커밋하지 않습니다.
 3. GitHub 저장소를 연결하고 Framework Preset을 Next.js로 선택합니다.
-4. Vercel의 Deployment Protection → Vercel Authentication에서 **All Deployments**를 유지합니다. 현재 앱 자체에는 로그인 기능이 없으므로 배포 보호를 해제하면 재고 조회와 변경 API가 공개됩니다. Origin 검사는 사용자 인증을 대신하지 않습니다.
+4. 2026-09-14 사용자 요청에 따라 공용 운영을 위해 Vercel Authentication을 해제했습니다. 현재 사이트와 APK는 로그인 없이 재고 조회·입출고·수정·삭제가 가능합니다. 앱 자체에는 별도 권한 관리가 없습니다. Origin 검사는 사용자 인증을 대신하지 않습니다.
 
 `.env.example`에 연결 예시가 있습니다. Vercel에서 로컬 DB가 지정되면 실행을 중단해 임시 파일에 재고를 잘못 저장하지 않도록 했습니다.
 
@@ -83,3 +95,26 @@ node scripts/migrate-database.mjs --env .env.migration.local --apply
 첫 명령은 대상이 비어 있는지와 이전할 테이블별 행 수를 확인합니다. `--apply`는 SQLite 백업 API로 원본의 스냅샷을 `work/`에 만든 뒤 스키마와 모든 행을 한 트랜잭션으로 이전합니다. 모든 열의 값과 외래 키를 검증한 후에만 확정합니다. 이전 후 로컬 DB와 Turso는 자동 동기화되지 않으므로 운영 입력은 배포 사이트 한쪽에서 진행하세요.
 
 공식 참고: [Next.js 설치](https://nextjs.org/docs/app/getting-started/installation), [Vercel의 SQLite 제한](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel), [libSQL TypeScript 클라이언트](https://tursodatabase.github.io/libsql-client-ts/).
+
+## 운영 DB 백업과 복구
+
+운영 DB 연결 정보가 들어 있는 `.env.migration.local`을 PC에 준비한 뒤 `05_backup_cloud_database.bat`을 실행하거나 다음 명령을 사용합니다.
+
+```powershell
+node scripts/backup-database.mjs --env .env.migration.local
+```
+
+`work/backups/inventory-날짜.db`에 일관된 읽기 트랜잭션의 스냅샷을 저장합니다. 모든 테이블의 값, 외래 키, SQLite 무결성을 확인한 후 `verified: true`를 출력합니다. 휴지통과 중복 처리 방지 기록도 포함합니다. 기존 백업 파일은 덮어쓰지 않습니다. 백업은 수동 실행이며 PC 외 별도 저장소에도 복사해 보관하세요.
+
+장애 복구는 먼저 **비어 있는 별도 Turso DB**를 만들고 그 연결 정보를 `.env.restore.local`에 저장하여 실행합니다.
+
+```powershell
+node scripts/migrate-database.mjs --env .env.restore.local --source work/backups/복구할파일.db
+node scripts/migrate-database.mjs --env .env.restore.local --source work/backups/복구할파일.db --apply
+```
+
+검증에 성공한 뒤 Vercel의 DB 환경변수를 복구한 DB로 변경하고 재배포합니다. 복구 중에는 입력을 중지하고, 전환 전 원래 DB도 백업하세요. 기존 테이블이 있는 대상에는 복원을 거부합니다. 데이터 백업과 토큰은 GitHub에 올리지 않습니다.
+
+## Android APK
+
+`android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.1.0은 기존 앱과 같은 키로 서명하며 배포 사이트를 엽니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.

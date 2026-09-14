@@ -1,0 +1,7 @@
+work/
+instance/
+.env*
+android/
+*.p12
+*.jks
+*.keystore

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 test('legacy data renders, forms work, and desktop/mobile routes are usable', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -110,7 +111,7 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   expect((await request.get('/unknown-page')).status()).toBe(404);
   const crossSite = await request.post('/api/inventory', { headers: { Origin: 'https://example.com' }, data: { action: 'item.delete', id: first.id } });
   expect(crossSite.status()).toBe(403);
-  const invalid = await request.post('/api/inventory', { headers: { Origin: 'http://127.0.0.1:3100' }, data: { action: 'stock.in', id: first.id, quantity: -1, manager: '김채희' } });
+  const invalid = await request.post('/api/inventory', { headers: { Origin: 'http://127.0.0.1:3100' }, data: { action: 'stock.in', id: first.id, quantity: -1, manager: '김채희', request_id: randomUUID(), expected_version: 0 } });
   expect(invalid.status()).toBe(400);
   expect(errors).toEqual([]);
 });

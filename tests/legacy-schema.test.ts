@@ -10,6 +10,8 @@ import { loadInventory, mutate } from '../src/lib/inventory';
 mkdirSync('work', { recursive: true });
 const dir = mkdtempSync(join(resolve('work'), 'legacy-test-'));
 process.env.DATABASE_URL = pathToFileURL(join(dir, 'legacy.db')).href;
+process.env.JEAGO_TEST_MODE = '1';
+process.env.JEAGO_TEST_DATABASE_URL = process.env.DATABASE_URL;
 after(async () => { (await getDb()).close(); });
 test('Flask schema without SQL timestamp defaults supports all new writes', async () => {
   const fixture = createClient({ url: process.env.DATABASE_URL! });

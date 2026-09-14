@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { loadInventory } from '@/lib/inventory';
 import { Dashboard } from '@/components/dashboard';
 import { Categories, History, ItemEditor, Partners, StockEditor } from '@/components/pages';
+import { Trash } from '@/components/trash';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 type Props = { params: Promise<{ path?: string[] }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -11,10 +12,11 @@ export default async function Page({ params, searchParams }: Props) {
   const query: Record<string, string> = {};
   for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') query[k] = v;
   const section = path[0] || '';
-  if (path.length > 2 || !['', 'add', 'categories', 'partners', 'transactions', 'edit', 'inbound', 'outbound', 'history'].includes(section)) notFound();
+  if (path.length > 2 || !['', 'add', 'categories', 'partners', 'transactions', 'edit', 'inbound', 'outbound', 'history', 'trash'].includes(section)) notFound();
   const itemRoute = ['edit', 'inbound', 'outbound', 'history'].includes(section);
   if (itemRoute ? path.length !== 2 || !/^\d+$/.test(path[1]) : path.length > 1) notFound();
-  const data = await loadInventory();
+  if (section === 'trash') return <Trash/>;
+  const data = await loadInventory({ history: ['history', 'transactions'].includes(section) });
   if (itemRoute) {
     const item = data.items.find(i => i.id === Number(path[1]));
     if (!item) notFound();
