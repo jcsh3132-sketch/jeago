@@ -42,11 +42,8 @@ export function AuthPanel({ signup = false, registered = false }: { signup?: boo
     } catch { setError(signup ? '연결을 확인해주세요. 가입 결과가 불확실하면 입력한 ID와 PW로 로그인을 시도하세요.' : '연결을 확인한 뒤 다시 로그인해주세요.'); setPending(false); }
   }
   return <main className="auth-page">
-    <div className="auth-brand"><Link href="/" aria-label="재고 관리 홈"><span className="auth-logo">▦</span><strong>JEAGO<span>재고 관리</span></strong></Link><span className="auth-brand-note">함께 관리하는 우리 팀의 재고</span></div>
-    <div className="auth-grid"><section className="auth-intro"><span className="auth-eyebrow">OUR INVENTORY, CONNECTED</span><h1>재고의 흐름을<br/>한곳에서,<br/><em>함께.</em></h1><p>입고부터 출고까지 한눈에 확인하세요.<br/>PC에서도, 휴대폰에서도 같은 재고로 연결됩니다.</p>
-      <div className="auth-visual" aria-hidden="true"><div className="auth-visual-top"><span>INVENTORY WORKSPACE</span><span className="auth-live">● CONNECTED</span></div><div className="auth-boxes"><span>입고<br/><b>↘</b></span><span className="auth-stock">▦<small>우리 팀의 재고</small></span><span>출고<br/><b>↗</b></span></div><div className="auth-visual-bottom"><span>PC & MOBILE</span><span>ONE WORKSPACE</span></div></div>
-      <div className="auth-features"><span>01 <b>실시간 재고 확인</b></span><span>02 <b>입출고 이력 관리</b></span><span>03 <b>안전한 삭제 복구</b></span></div>
-    </section><section className="auth-card" aria-labelledby="auth-title"><div className="auth-card-kicker">{signup ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</div><h2 id="auth-title">{signup ? '회원가입' : '로그인'}</h2><p className="auth-card-description">{signup ? '계정을 만들고 우리 팀의 재고 관리를 시작하세요.' : '계정으로 로그인하고 재고 관리를 시작하세요.'}</p>
+    <div className="auth-brand"><Link href="/" aria-label="재고 관리 홈"><span className="auth-logo">▦</span><strong>JEAGO<span>재고 관리</span></strong></Link></div>
+    <div className="auth-grid"><section className="auth-card" aria-labelledby="auth-title"><h1 id="auth-title">{signup ? '회원가입' : '로그인'}</h1><p className="auth-card-description">{signup ? '가입 정보를 입력하세요.' : 'ID와 PW를 입력하세요.'}</p>
       {registered && <p role="status" className="auth-success">회원가입이 완료되었습니다. ID와 PW로 로그인해주세요.</p>}
       <form method="post" action={`/api/auth/${signup ? 'signup' : 'login'}`} onSubmit={submit} autoComplete="on" className="auth-form"><fieldset disabled={pending}>
         {signup && <label>이름<input name="display_name" autoComplete="name" maxLength={50} required placeholder="사용할 이름을 입력하세요"/></label>}
@@ -58,11 +55,11 @@ export function AuthPanel({ signup = false, registered = false }: { signup?: boo
           <label><input type="checkbox" checked={savePassword} onChange={event => { setSavePassword(event.target.checked); preference('jeago:password-manager', event.target.checked ? '1' : null); }}/>PW 저장</label>
           <label><input type="checkbox" checked={auto} onChange={event => setAuto(event.target.checked)}/>자동로그인</label>
         </div><p className="auth-help">PW 저장은 브라우저의 비밀번호 관리자를 사용합니다.<br/>자동로그인은 이 기기·브라우저에서 30일간 유지됩니다.</p></>}
-        {signup && <p className="auth-help">가입한 회원은 같은 재고와 입출고 이력을 함께 관리합니다.</p>}
+        {signup && <p className="auth-help">모든 회원이 같은 재고와 입출고 이력을 사용합니다.</p>}
         <button type="submit" className="auth-submit">{pending ? '처리 중…' : signup ? '회원가입' : '로그인'}<span aria-hidden="true">→</span></button>
       </fieldset>{error && <p role="alert" className="auth-error">{error}</p>}</form>
       <div className="auth-switch">{signup ? '이미 계정이 있으신가요?' : '아직 계정이 없으신가요?'} <Link href={signup ? '/' : '/signup'}>{signup ? '로그인' : '회원가입'}</Link></div>
-    </section></div><footer className="auth-footer"><span>JEAGO · INVENTORY MANAGEMENT</span><span>매일의 재고 관리를 더 간편하게</span></footer>
+    </section></div>
   </main>;
 }
 
