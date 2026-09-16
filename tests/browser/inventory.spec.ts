@@ -27,12 +27,15 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   await expect(page.locator(`#item-${first.id}`)).toBeVisible();
 
   await page.goto('/add');
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveValue(account.display_name);
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveAttribute('readonly', '');
   await page.getByRole('textbox', { name: '모델명', exact: true }).fill('E2E-재고모델');
   await page.getByLabel('품목 카테고리').selectOption(String(first.category));
   await page.getByRole('button', { name: '모델 등록', exact: true }).click();
   await expect(page).toHaveURL(/item=\d+/);
   const id = new URL(page.url()).searchParams.get('item');
   const row = page.locator(`#item-${id}`);
+  await expect(row.locator('td[data-label="담당자"]')).toHaveText(account.display_name);
   await expect(row).toContainText('E2E-재고모델');
   await row.getByRole('link', { name: '입고', exact: true }).click();
   await expect(page.getByLabel('담당자', { exact: true })).toHaveValue(account.display_name);
@@ -61,6 +64,7 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   await expect(page.locator('.history-table tbody tr').first().locator('td').first()).toHaveText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
   await expect(page.locator('.history-table tbody tr').first()).toContainText('E2E-거래처');
   await page.goto(`/edit/${id}`);
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveValue(account.display_name);
   await page.getByLabel('모델명', { exact: true }).fill('E2E-수정모델');
   await page.getByRole('button', { name: '변경 저장' }).click();
   await expect(page).toHaveURL(/item=\d+/);

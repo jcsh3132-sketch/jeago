@@ -23,9 +23,9 @@ function integer(v: unknown, min = 1, max = 2147483647): number {
   if (!Number.isSafeInteger(n) || n < min || n > max) throw new InputError(`${min}~${max} 사이의 정수를 입력하세요.`);
   return n;
 }
-function manager(f: Fields) {
+function manager(f: Fields, existing?: string) {
   const m = text(f, 'manager', 50);
-  if (!MANAGERS.includes(m)) throw new InputError('담당자를 선택하세요.');
+  if (!MANAGERS.includes(m) && m !== existing) throw new InputError('담당자를 선택하세요.');
   return m;
 }
 async function node(tx: Transaction, id: number): Promise<Category> {
@@ -142,9 +142,9 @@ export async function loadInventory({ history = true } = {}): Promise<InventoryD
   return { categories: categories.rows as unknown as Category[], items: items.rows as unknown as Item[], partners: partners.rows as unknown as Partner[], transactions: transactions.rows as unknown as StockTransaction[], customerNames: uniquePartnerNames([...partners.rows.map(p => String(p.name)), ...customers.rows.map(row => String(row.customer_name))]) };
 }
 export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'>): Promise<{ message: string; redirect?: string }> {
-  // Only the server's verified session supplies the stock operator. Client
+  // Only the server's verified session supplies the new-model/stock operator. Client
   // manager/actor fields cannot impersonate another member, including retries.
-  if (actor) f = { ...f, actor_id: actor.id, ...(['stock.in', 'stock.out'].includes(String(f.action)) ? { manager: actor.display_name } : {}) };
+  if (actor) f = { ...f, actor_id: actor.id, ...(['item.add', 'stock.in', 'stock.out'].includes(String(f.action)) ? { manager: actor.display_name } : {}) };
   const action = text(f, 'action', 40);
   if (!ACTIONS.includes(action)) throw new InputError('지원하지 않는 요청입니다.');
   const requestId = text(f, 'request_id', 80, false);
@@ -174,14 +174,17 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       }
     }
     if (action === 'item.add' || action === 'item.edit') {
-      const name = text(f, 'name', 100), category = text(f, 'category'), owner = manager(f);
+      const name = text(f, 'name', 100), category = text(f, 'category');
       await leaf(tx, category);
       let id: number;
       if (action === 'item.add') {
+        const owner = actor ? actor.display_name : manager(f);
         id = await nextInventoryId(tx, 'item');
         await tx.execute({ sql: 'INSERT INTO item(id,name,manager,category,quantity,low_stock_threshold) VALUES (?,?,?,?,0,5)', args: [id, name, owner, category] });
       } else {
-        id = integer(f.id); checkVersion(f, await item(tx, id));
+        id = integer(f.id);
+        const current = await item(tx, id); checkVersion(f, current);
+        const owner = manager(f, current.manager);
         await tx.execute({ sql: 'UPDATE item SET name=?, manager=?, category=?,version=version+1 WHERE id=?', args: [name, owner, category, id] });
       }
       redirect = `/?category=${encodeURIComponent(category)}&item=${id}#item-${id}`;

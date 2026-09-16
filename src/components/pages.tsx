@@ -5,11 +5,11 @@ import { PartnerInput } from './partner-input';
 import { label, categoryPath, MANAGERS, type InventoryData, type Item, type Category, type StockTransaction } from '@/lib/types';
 
 function ManagerSelect({ value }: { value?: string }) {
-  return <label className="field field-label">담당자<select name="manager" required defaultValue={value || MANAGERS[0]}>{MANAGERS.map(m => <option key={m}>{m}</option>)}</select></label>;
+  return <label className="field field-label">담당자<select name="manager" aria-label="담당자" required defaultValue={value || MANAGERS[0]}>{[...new Set([...(value ? [value] : []), ...MANAGERS])].map(m => <option key={m}>{m}</option>)}</select></label>;
 }
-export function ItemEditor({ data, item, selected }: { data: InventoryData; item?: Item; selected?: string }) {
+export function ItemEditor({ data, item, selected, user }: { data: InventoryData; item?: Item; selected?: string; user: User }) {
   return <div className="form-page"><section className="form-card"><div className="form-heading"><span className="section-kicker">{item ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{item ? '모델 정보 수정' : '새 모델 등록'}</h2><p>모델을 등록한 후 입고 처리로 재고를 추가하세요.</p></div>
-    <ActionForm action={item ? 'item.edit' : 'item.add'}>{item && <><Hidden name="id" value={item.id}/><Hidden name="expected_version" value={item.version}/></>}<Field name="name" label="모델명" value={item?.name} required maxLength={100}/><ManagerSelect value={item?.manager}/><CategorySelect categories={data.categories} selected={item?.category || selected}/><p className="muted">필요한 분류가 없다면 <Link href="/categories">카테고리 관리</Link>에서 먼저 추가하세요.</p><div className="form-actions"><Link href="/" className="top-btn ghost">취소</Link><button type="submit" className="top-btn primary">{item ? '변경 저장' : '모델 등록'}</button></div></ActionForm>
+    <ActionForm action={item ? 'item.edit' : 'item.add'}>{item && <><Hidden name="id" value={item.id}/><Hidden name="expected_version" value={item.version}/></>}<Field name="name" label="모델명" value={item?.name} required maxLength={100}/>{item ? <ManagerSelect value={item.manager}/> : <><label className="field field-label">담당자<input value={user.display_name} readOnly aria-describedby="model-owner-note"/></label><p id="model-owner-note" className="muted">로그인 계정 {user.username}의 이름으로 자동 등록됩니다.</p></>}<CategorySelect categories={data.categories} selected={item?.category || selected}/><p className="muted">필요한 분류가 없다면 <Link href="/categories">카테고리 관리</Link>에서 먼저 추가하세요.</p><div className="form-actions"><Link href="/" className="top-btn ghost">취소</Link><button type="submit" className="top-btn primary">{item ? '변경 저장' : '모델 등록'}</button></div></ActionForm>
   </section></div>;
 }
 export function StockEditor({ data, item, outbound, user }: { data: InventoryData; item: Item; outbound: boolean; user: User }) {
