@@ -41,7 +41,7 @@ public final class MainActivity extends Activity {
         TextView title = text("재고 관리", 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         root.addView(title);
-        TextView detail = text("재고 현황 · 입고 · 출고\n어디서나 같은 재고를 확인하세요.", 16, Color.rgb(189, 211, 218));
+        TextView detail = text("우리 팀의 재고를 함께 관리하세요.", 16, Color.rgb(189, 211, 218));
         detail.setPadding(0, dp(16), 0, dp(30));
         root.addView(detail);
         Button open = new Button(this);
@@ -49,7 +49,7 @@ public final class MainActivity extends Activity {
         open.setTextSize(17);
         open.setOnClickListener(view -> openInventory());
         root.addView(open, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)));
-        TextView note = text("로그인 없이 바로 이용할 수 있습니다.\n인터넷에 연결된 상태에서 사용하세요.", 13, Color.rgb(189, 211, 218));
+        TextView note = text("로그인 후 이용할 수 있습니다.\n자동로그인은 로그인 화면에서 설정하세요.", 13, Color.rgb(189, 211, 218));
         note.setPadding(0, dp(24), 0, 0);
         root.addView(note);
         setContentView(root);

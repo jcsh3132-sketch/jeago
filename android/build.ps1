@@ -38,12 +38,12 @@ if (!(Test-Path $keyStore)) {
     Run-Checked (Join-Path $jdk 'bin\keytool.exe') @('-genkeypair','-keystore',$keyStore,'-storetype','PKCS12','-storepass:env','JEAGO_SIGNING_PASSWORD','-keypass:env','JEAGO_SIGNING_PASSWORD','-alias','jeago','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=Jeago Inventory, OU=Mobile, O=Jeago, C=KR')
 }
 $env:JEAGO_SIGNING_PASSWORD = (Get-Content -LiteralPath $passwordFile -Raw).Trim()
-$apk = Join-Path $output 'jeago-1.1.0.apk'
+$apk = Join-Path $output 'jeago-1.1.1.apk'
 try {
     Run-Checked (Join-Path $jdk 'bin\java.exe') @('-jar',(Join-Path $buildTools 'lib\apksigner.jar'),'sign','--ks',$keyStore,'--ks-key-alias','jeago','--ks-pass','env:JEAGO_SIGNING_PASSWORD','--key-pass','env:JEAGO_SIGNING_PASSWORD','--out',$apk,(Join-Path $build 'aligned.apk'))
 } finally { Remove-Item Env:\JEAGO_SIGNING_PASSWORD -ErrorAction SilentlyContinue }
 Run-Checked (Join-Path $jdk 'bin\java.exe') @('-jar',(Join-Path $buildTools 'lib\apksigner.jar'),'verify','--verbose','--print-certs',$apk)
 Run-Checked (Join-Path $buildTools 'zipalign.exe') @('-c','-p','4',$apk)
 Run-Checked (Join-Path $buildTools 'aapt2.exe') @('dump','badging',$apk)
-(Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash | Set-Content (Join-Path $output 'jeago-1.1.0.apk.sha256') -Encoding ascii
+(Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash | Set-Content (Join-Path $output 'jeago-1.1.1.apk.sha256') -Encoding ascii
 Write-Output "APK: $apk"

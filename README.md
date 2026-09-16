@@ -117,7 +117,7 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 
 ## Android APK
 
-`android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.1.0은 기존 앱과 같은 키로 서명하며 배포 사이트를 엽니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.
+`android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.1.1은 기존 앱과 같은 키로 서명하며 배포 사이트를 엽니다. 뒤로가기 시 표시되는 앱 시작 화면의 안내도 현재 회원 로그인 방식에 맞게 수정했습니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.
 
 ## 회원가입 · 기기별 로그인
 
