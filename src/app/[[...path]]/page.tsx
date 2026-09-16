@@ -15,7 +15,8 @@ export default async function Page({ params, searchParams }: Props) {
   if (!user) {
     const { path = [] } = await params;
     if (path.length) redirect('/');
-    return <AuthPanel registered={(await searchParams).registered === '1'}/>;
+    const query = await searchParams;
+    return <AuthPanel registered={query.registered === '1'} passwordChanged={query.password_changed === '1'}/>;
   }
   return <Shell username={user.display_name}><InventoryPage params={params} searchParams={searchParams} user={user}/></Shell>;
 }

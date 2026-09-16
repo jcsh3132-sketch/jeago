@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 
 type PasswordCredentialConstructor = new (data: { id: string; password: string; name?: string }) => Credential;
-export function AuthPanel({ signup = false, registered = false }: { signup?: boolean; registered?: boolean }) {
+export function AuthPanel({ signup = false, registered = false, passwordChanged = false }: { signup?: boolean; registered?: boolean; passwordChanged?: boolean }) {
   const [username, setUsername] = useState(''), [saveId, setSaveId] = useState(false), [savePassword, setSavePassword] = useState(false), [auto, setAuto] = useState(false);
   const [show, setShow] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState('');
   useEffect(() => {
@@ -45,6 +45,7 @@ export function AuthPanel({ signup = false, registered = false }: { signup?: boo
     <div className="auth-brand"><Link href="/" aria-label="재고 관리 홈"><span className="auth-logo">▦</span><strong>재고 관리</strong></Link></div>
     <div className="auth-grid"><section className="auth-card" aria-labelledby="auth-title"><h1 id="auth-title">{signup ? '회원가입' : '로그인'}</h1><p className="auth-card-description">{signup ? '가입 정보를 입력하세요.' : 'ID와 PW를 입력하세요.'}</p>
       {registered && <p role="status" className="auth-success">회원가입이 완료되었습니다. ID와 PW로 로그인해주세요.</p>}
+      {passwordChanged && <p role="status" className="auth-success">비밀번호가 변경되어 모든 기기에서 로그아웃되었습니다. 새 비밀번호로 로그인해주세요.</p>}
       <form method="post" action={`/api/auth/${signup ? 'signup' : 'login'}`} onSubmit={submit} autoComplete="on" className="auth-form"><fieldset disabled={pending}>
         {signup && <label>이름<input name="display_name" autoComplete="name" maxLength={50} required placeholder="사용할 이름을 입력하세요"/></label>}
         <label>ID<input name="username" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" required placeholder={signup ? '영문·숫자 등 3~32자' : 'ID를 입력하세요'}/></label>

@@ -34,6 +34,10 @@ async function initialize() {
     // Serialize additive schema upgrades across cold starts without replacing legacy tables.
     const upgrade = await db.transaction('write');
     try {
+      const userColumns = new Set((await upgrade.execute('PRAGMA table_info(app_user)')).rows.map(c => c.name));
+      for (const column of ['email', 'phone', 'department']) {
+        if (!userColumns.has(column)) await upgrade.execute(`ALTER TABLE app_user ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
+      }
       for (const table of ['item', 'category', 'partner']) {
         const columns = new Set((await upgrade.execute(`PRAGMA table_info("${table}")`)).rows.map(c => c.name));
         const additions = [['version', 'INTEGER NOT NULL DEFAULT 0'], ['deleted_at', 'TEXT'], ['trash_group', 'TEXT']];

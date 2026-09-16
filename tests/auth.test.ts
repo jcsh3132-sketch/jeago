@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { register, authenticate, createSession, sessionUser, revokeSession, limitAuth, AuthError, REMEMBER_SECONDS, SESSION_SECONDS } from '../src/lib/auth';
+import { register, authenticate, createSession, sessionUser, revokeSession, limitAuth, updateAccount, accountProfile, AuthError, REMEMBER_SECONDS, SESSION_SECONDS } from '../src/lib/auth';
 import { getDb } from '../src/lib/db';
 mkdirSync('work', { recursive: true });
 process.env.JEAGO_TEST_MODE = '1';
@@ -49,4 +49,50 @@ test('persistent rate limits reject excessive attempts and recover after the win
   await assert.rejects(limitAuth('test:ip', 2, 60, 1000), error => error instanceof AuthError && error.status === 429);
   await limitAuth('test:other-ip', 2, 60, 1000);
   await limitAuth('test:ip', 2, 60, 61000);
+});
+
+test('profile edits require the current password and affect only the session owner', async () => {
+  const password = 'profile-password-2026';
+  const user = await register({ username: 'profile.owner', display_name: '원래 이름', password, password_confirm: password });
+  const other = await register({ username: 'profile.other', display_name: '다른 사용자', password, password_confirm: password });
+  const token = await createSession(user.id, true), otherToken = await createSession(other.id, false);
+  const fields = { id: other.id, username: 'profile.updated', display_name: '수정 이름', email: 'member@example.com', phone: '010-1234-5678', department: '물류팀', current_password: password };
+  const initial = await accountProfile(token);
+  assert.equal(initial.email, '');
+  await assert.rejects(updateAccount(undefined, 'profile', fields), error => error instanceof AuthError && error.status === 401);
+  await assert.rejects(updateAccount(token, 'profile', { ...fields, current_password: 'wrong-password' }), /현재 비밀번호/);
+  await assert.rejects(updateAccount(token, 'profile', { ...fields, username: other.username }), error => error instanceof AuthError && error.status === 409);
+  for (const invalid of [{ email: 'invalid' }, { display_name: ' ' }, { department: 'x'.repeat(101) }, { username: '??' }]) {
+    await assert.rejects(updateAccount(token, 'profile', { ...fields, ...invalid }), AuthError);
+  }
+  assert.deepEqual(await accountProfile(token), initial);
+  await updateAccount(token, 'profile', fields);
+  assert.equal((await authenticate({ username: fields.username, password })).id, user.id);
+  await assert.rejects(authenticate({ username: user.username, password }), /올바르지/);
+  assert.equal((await sessionUser(token))!.display_name, fields.display_name);
+  assert.equal((await accountProfile(token)).department, fields.department);
+  assert.equal((await accountProfile(otherToken)).display_name, '다른 사용자');
+});
+
+test('password updates validate confirmation, revoke all owner sessions, and leave other accounts intact', async () => {
+  const password = 'password-before-2026', next = 'password-after-2026';
+  const user = await register({ username: 'password.owner', display_name: '사용자', password, password_confirm: password });
+  const other = await register({ username: 'password.other', display_name: '다른 사용자', password, password_confirm: password });
+  const pc = await createSession(user.id, true), mobile = await createSession(user.id, true), untouched = await createSession(other.id, true);
+  const fields = { current_password: password, new_password: next, password_confirm: next };
+  await assert.rejects(updateAccount(pc, 'password', { ...fields, current_password: 'wrong-password' }), /현재 비밀번호/);
+  await assert.rejects(updateAccount(pc, 'password', { ...fields, password_confirm: 'not-equal' }), /일치/);
+  await assert.rejects(updateAccount(pc, 'password', { ...fields, new_password: 'short' }), /10~128/);
+  await assert.rejects(updateAccount(pc, 'password', { ...fields, new_password: password, password_confirm: password }), /다른 새 비밀번호/);
+  assert(await sessionUser(mobile));
+  const attempts = await Promise.allSettled([updateAccount(pc, 'password', fields), updateAccount(mobile, 'password', fields)]);
+  assert.equal(attempts.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(await sessionUser(pc), null);
+  assert.equal(await sessionUser(mobile), null);
+  assert.equal((await sessionUser(untouched))!.id, other.id);
+  await assert.rejects(updateAccount(pc, 'password', fields), error => error instanceof AuthError && error.status === 401);
+  await assert.rejects(authenticate({ username: user.username, password }), /올바르지/);
+  assert.equal((await authenticate({ username: user.username, password: next })).id, user.id);
+  const hash = (await (await getDb()).execute({ sql: 'SELECT password_hash FROM app_user WHERE id=?', args: [user.id] })).rows[0].password_hash;
+  assert(String(hash).startsWith('scrypt:')); assert(!String(hash).includes(next));
 });
