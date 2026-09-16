@@ -35,11 +35,14 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   const row = page.locator(`#item-${id}`);
   await expect(row).toContainText('E2E-재고모델');
   await row.getByRole('link', { name: '입고', exact: true }).click();
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveValue(account.display_name);
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveAttribute('readonly', '');
   await page.getByLabel('입고 수량').fill('10');
   await page.getByRole('button', { name: '입고 처리' }).click();
   await expect(page).toHaveURL(/item=\d+/);
   await expect(page.locator(`#item-${id} .qty-value`)).toHaveText('10');
   await page.locator(`#item-${id}`).getByRole('link', { name: '출고', exact: true }).click();
+  await expect(page.getByLabel('담당자', { exact: true })).toHaveValue(account.display_name);
   await page.getByLabel('출고 수량').fill('3');
   await page.getByLabel('출고업체').fill('E2E-거래처');
   await page.getByRole('button', { name: '출고 처리' }).click();
@@ -54,6 +57,7 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.goto(`/history/${id}`);
   await expect(page.locator('.history-table tbody tr')).toHaveCount(2);
+  for (const cell of await page.locator('.history-table tbody td[data-label="담당자"]').all()) await expect(cell).toHaveText(account.display_name);
   await expect(page.locator('.history-table tbody tr').first().locator('td').first()).toHaveText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
   await expect(page.locator('.history-table tbody tr').first()).toContainText('E2E-거래처');
   await page.goto(`/edit/${id}`);

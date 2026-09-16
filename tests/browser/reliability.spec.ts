@@ -62,6 +62,9 @@ test('lost responses can be recovered after reload; stale edits and trash work o
   await expect(entry).toHaveCount(0);
   await page.goto(`/history/${id}`);
   await expect(page.locator('.history-table tbody tr')).toHaveCount(3);
+  // Direct API requests above deliberately sent another manager's name;
+  // every operation must still use the authenticated member's name.
+  for (const cell of await page.locator('.history-table tbody td[data-label="담당자"]').all()) await expect(cell).toHaveText(account.display_name);
   await page.goto(`/?item=${id}`);
   await expect(page.locator(`#item-${id} .qty-value`)).toHaveText('8');
 });

@@ -1,4 +1,5 @@
 import type { Transaction } from '@libsql/client';
+import type { User } from './auth';
 import { randomUUID, createHash } from 'node:crypto';
 import { getDb } from './db';
 import { MANAGERS, type Category, type Item, type Partner, type StockTransaction, type InventoryData } from './types';
@@ -109,7 +110,10 @@ export async function loadInventory({ history = true } = {}): Promise<InventoryD
   ], 'read');
   return { categories: categories.rows as unknown as Category[], items: items.rows as unknown as Item[], partners: partners.rows as unknown as Partner[], transactions: transactions.rows as unknown as StockTransaction[] };
 }
-export async function mutate(f: Fields): Promise<{ message: string; redirect?: string }> {
+export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'>): Promise<{ message: string; redirect?: string }> {
+  // Only the server's verified session supplies the stock operator. Client
+  // manager/actor fields cannot impersonate another member, including retries.
+  if (actor) f = { ...f, actor_id: actor.id, ...(['stock.in', 'stock.out'].includes(String(f.action)) ? { manager: actor.display_name } : {}) };
   const action = text(f, 'action', 40);
   if (!ACTIONS.includes(action)) throw new InputError('지원하지 않는 요청입니다.');
   const requestId = text(f, 'request_id', 80, false);
@@ -160,7 +164,7 @@ export async function mutate(f: Fields): Promise<{ message: string; redirect?: s
       const id = integer(f.id), category = text(f, 'category'); checkVersion(f, await item(tx, id)); await leaf(tx, category);
       await tx.execute({ sql: 'UPDATE item SET category=?,version=version+1 WHERE id=?', args: [category, id] });
     } else if (action === 'stock.in' || action === 'stock.out') {
-      const id = integer(f.id), qty = integer(f.quantity), owner = manager(f), current = await item(tx, id);
+      const id = integer(f.id), qty = integer(f.quantity), owner = actor ? actor.display_name : manager(f), current = await item(tx, id);
       checkVersion(f, current);
       const outbound = action === 'stock.out';
       const customer = outbound ? text(f, 'customer_name') : '';

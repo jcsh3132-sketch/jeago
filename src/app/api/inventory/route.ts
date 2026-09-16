@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!ACTIONS.includes(fields.action)) throw new InputError('지원하지 않는 요청입니다.');
     if (typeof fields.request_id !== 'string' || !/^[a-f0-9-]{36}$/i.test(fields.request_id)) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
     if (!fields.action.endsWith('.add') && fields.action !== 'trash.restore' && fields.expected_version === undefined) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
-    return NextResponse.json({ ok: true, ...await mutate({ ...fields, actor_id: user.id }) });
+    return NextResponse.json({ ok: true, ...await mutate(fields, user) });
   } catch (e) {
     if (e instanceof InputError || e instanceof SyntaxError) return NextResponse.json({ ok: false, message: e.message }, { status: e instanceof ConflictError ? 409 : 400 });
     console.error('Inventory mutation failed:', e);

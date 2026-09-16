@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth-request';
+import type { User } from '@/lib/auth';
 import { AuthPanel } from '@/components/auth-panel';
 import { Shell } from '@/components/shell';
 import { loadInventory } from '@/lib/inventory';
@@ -16,9 +17,9 @@ export default async function Page({ params, searchParams }: Props) {
     if (path.length) redirect('/');
     return <AuthPanel registered={(await searchParams).registered === '1'}/>;
   }
-  return <Shell username={user.display_name}><InventoryPage params={params} searchParams={searchParams}/></Shell>;
+  return <Shell username={user.display_name}><InventoryPage params={params} searchParams={searchParams} user={user}/></Shell>;
 }
-async function InventoryPage({ params, searchParams }: Props) {
+async function InventoryPage({ params, searchParams, user }: Props & { user: User }) {
   const { path = [] } = await params;
   const raw = await searchParams;
   const query: Record<string, string> = {};
@@ -34,7 +35,7 @@ async function InventoryPage({ params, searchParams }: Props) {
     if (!item) notFound();
     if (section === 'edit') return <ItemEditor key={item.id} data={data} item={item}/>;
     if (section === 'history') return <History data={data} item={item} query={query}/>;
-    return <StockEditor key={`${section}-${item.id}`} data={data} item={item} outbound={section === 'outbound'}/>;
+    return <StockEditor key={`${section}-${item.id}`} data={data} item={item} outbound={section === 'outbound'} user={user}/>;
   }
   if (section === 'add') return <ItemEditor data={data} selected={query.category}/>;
   if (section === 'categories') return <Categories data={data}/>;
