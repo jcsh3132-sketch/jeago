@@ -2,6 +2,7 @@ import { createClient, type Client } from '@libsql/client';
 import { existsSync, mkdirSync } from 'node:fs';
 import { DEFAULT_MAINS } from './types';
 import { databaseConfig } from './database-config';
+import { importHistoricalPartners, nextInventoryId } from './partner-store';
 
 const globalDb = globalThis as unknown as { inventoryDb?: Promise<Client> };
 export async function getDb(): Promise<Client> {
@@ -45,17 +46,28 @@ async function initialize() {
         if (statements.length) await upgrade.batch(statements);
       }
       await upgrade.batch([
+        'CREATE TABLE IF NOT EXISTS inventory_sequence (name TEXT PRIMARY KEY,value INTEGER NOT NULL)',
+        'CREATE TABLE IF NOT EXISTS inventory_migration (name TEXT PRIMARY KEY)',
         'CREATE TABLE IF NOT EXISTS mutation_request (id TEXT PRIMARY KEY, payload TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS trash_entry (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, restored_at TEXT)',
         'CREATE INDEX IF NOT EXISTS idx_item_trash ON item(trash_group)',
         'CREATE INDEX IF NOT EXISTS idx_category_trash ON category(trash_group)',
         'CREATE INDEX IF NOT EXISTS idx_partner_trash ON partner(trash_group)',
       ]);
+      for (const table of ['item', 'category', 'partner']) await upgrade.execute({ sql: `INSERT INTO inventory_sequence(name,value) VALUES (?,(SELECT COALESCE(MAX(id),0) FROM ${table})) ON CONFLICT(name) DO UPDATE SET value=MAX(value,excluded.value)`, args: [table] });
+      await importHistoricalPartners(upgrade);
       await upgrade.commit();
     } catch (error) { if (!upgrade.closed) await upgrade.rollback(); throw error; }
     finally { upgrade.close(); }
     const count = await db.execute('SELECT COUNT(*) AS n FROM category');
-    if (Number(count.rows[0].n) === 0) await db.batch(DEFAULT_MAINS.map((name, i) => ({ sql: 'INSERT OR IGNORE INTO category(name,display_name,created_at) VALUES (?,?,CURRENT_TIMESTAMP)', args: [`main_default_${i}`, name] })), 'write');
+    if (Number(count.rows[0].n) === 0) {
+      const seed = await db.transaction('write');
+      try {
+        for (const [i, name] of DEFAULT_MAINS.entries()) await seed.execute({ sql: 'INSERT OR IGNORE INTO category(id,name,display_name,created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)', args: [await nextInventoryId(seed, 'category'), `main_default_${i}`, name] });
+        await seed.commit();
+      } catch (error) { if (!seed.closed) await seed.rollback(); throw error; }
+      finally { seed.close(); }
+    }
     return db;
   } catch (e) { db.close(); throw e; }
 }

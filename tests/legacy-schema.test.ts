@@ -31,7 +31,7 @@ test('Flask schema without SQL timestamp defaults supports all new writes', asyn
   const item = (await loadInventory()).items[0];
   await mutate({ action: 'stock.in', id: item.id, quantity: 5, manager: '김채희' });
   await mutate({ action: 'stock.out', id: item.id, quantity: 2, manager: '김채희', customer_name: '업체' });
-  await mutate({ action: 'partner.add', name: '업체' });
+  await assert.rejects(mutate({ action: 'partner.add', name: '업체' }), /이미 등록/);
   const data = await loadInventory();
   assert.equal(data.items[0].quantity, 3);
   assert(data.transactions.every(t => /^\d{4}-\d{2}-\d{2} /.test(t.date)));

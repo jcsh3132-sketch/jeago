@@ -2,11 +2,13 @@ import type { Transaction } from '@libsql/client';
 import type { User } from './auth';
 import { randomUUID, createHash } from 'node:crypto';
 import { getDb } from './db';
+import { cleanPartnerName, uniquePartnerNames } from './partner-names';
+import { ensurePartner, existingPartner, nextInventoryId } from './partner-store';
 import { MANAGERS, type Category, type Item, type Partner, type StockTransaction, type InventoryData } from './types';
 
 export class InputError extends Error {}
 export class ConflictError extends InputError {}
-export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore'];
+export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore', 'trash.purge', 'trash.empty'];
 type Fields = Record<string, unknown>;
 function text(f: Fields, key: string, max = 120, required = true): string {
   const v = f[key];
@@ -67,6 +69,8 @@ async function archive(tx: Transaction, table: 'item' | 'partner', id: number, n
 async function restoreTrash(tx: Transaction, group: string) {
   const entry = await tx.execute({ sql: 'SELECT id FROM trash_entry WHERE id=? AND restored_at IS NULL', args: [group] });
   if (!entry.rows.length) throw new InputError('복구할 항목이 없거나 이미 복구되었습니다.');
+  const partners = (await tx.execute({ sql: 'SELECT name FROM partner WHERE trash_group=? AND deleted_at IS NOT NULL', args: [group] })).rows;
+  for (const partner of partners) if (await existingPartner(tx, String(partner.name))) throw new InputError('같은 이름의 거래처가 이미 있습니다. 기존 거래처를 확인한 뒤 복구하세요.');
   const rows = (await tx.execute({ sql: 'SELECT * FROM category WHERE deleted_at IS NULL OR trash_group=?', args: [group] })).rows;
   const categories = rows as unknown as (Category & { trash_group: string | null })[];
   const byId = new Map(categories.map(c => [c.id, c]));
@@ -94,6 +98,32 @@ async function restoreTrash(tx: Transaction, group: string) {
   ]);
 }
 export type TrashEntry = { id: string; kind: string; name: string; deleted_at: string; items: number; categories: number; partners: number };
+export const trashSnapshot = (ids: string[]) => createHash('sha256').update(JSON.stringify([...ids].sort())).digest('hex');
+async function purgeTrash(tx: Transaction, groups: string[]) {
+  const selected = new Set(groups);
+  const categories = (await tx.execute('SELECT id,name,parent_id,deleted_at,trash_group FROM category')).rows;
+  const items = (await tx.execute('SELECT id,category,deleted_at,trash_group FROM item')).rows;
+  const targets = categories.filter(row => row.deleted_at && selected.has(String(row.trash_group)));
+  const ids = new Set(targets.map(row => Number(row.id))), names = new Set(targets.map(row => String(row.name)));
+  if (categories.some(row => row.parent_id !== null && ids.has(Number(row.parent_id)) && !ids.has(Number(row.id)))
+    || items.some(row => names.has(String(row.category)) && !(row.deleted_at && selected.has(String(row.trash_group))))) {
+    throw new ConflictError('연결된 하위 항목이 다른 곳에 남아 있습니다. 하위 휴지통 항목을 먼저 영구 삭제하거나 전체 비우기를 이용하세요.');
+  }
+  for (const group of groups) await tx.batch([
+    { sql: 'DELETE FROM "transaction" WHERE item_id IN (SELECT id FROM item WHERE trash_group=? AND deleted_at IS NOT NULL)', args: [group] },
+    { sql: 'DELETE FROM item WHERE trash_group=? AND deleted_at IS NOT NULL', args: [group] },
+    { sql: 'DELETE FROM partner WHERE trash_group=? AND deleted_at IS NOT NULL', args: [group] },
+  ]);
+  // Delete children before parents, including categories archived in separate groups.
+  const pending = [...targets];
+  while (pending.length) {
+    const index = pending.findIndex(row => !pending.some(other => other.parent_id === row.id));
+    if (index < 0) throw new InputError('카테고리 연결을 확인한 뒤 다시 시도해주세요.');
+    const [row] = pending.splice(index, 1);
+    await tx.execute({ sql: 'DELETE FROM category WHERE id=? AND deleted_at IS NOT NULL', args: [row.id] });
+  }
+  for (const group of groups) await tx.execute({ sql: 'DELETE FROM trash_entry WHERE id=? AND restored_at IS NULL', args: [group] });
+}
 export async function loadTrash(): Promise<TrashEntry[]> {
   const result = await (await getDb()).execute(`SELECT e.*,
     (SELECT COUNT(*) FROM item WHERE trash_group=e.id) AS items,
@@ -104,11 +134,12 @@ export async function loadTrash(): Promise<TrashEntry[]> {
 }
 export async function loadInventory({ history = true } = {}): Promise<InventoryData> {
   const db = await getDb();
-  const [categories, items, partners, transactions] = await db.batch([
+  const [categories, items, partners, transactions, customers] = await db.batch([
     'SELECT * FROM category WHERE deleted_at IS NULL ORDER BY id', 'SELECT * FROM item WHERE deleted_at IS NULL ORDER BY name,id',
     'SELECT * FROM partner WHERE deleted_at IS NULL ORDER BY name,id', history ? 'SELECT t.* FROM "transaction" t JOIN item i ON i.id=t.item_id WHERE i.deleted_at IS NULL ORDER BY t.date,t.id' : 'SELECT * FROM "transaction" WHERE 0',
+    'SELECT DISTINCT customer_name FROM "transaction" WHERE transaction_type=\'출고\' AND customer_name IS NOT NULL',
   ], 'read');
-  return { categories: categories.rows as unknown as Category[], items: items.rows as unknown as Item[], partners: partners.rows as unknown as Partner[], transactions: transactions.rows as unknown as StockTransaction[] };
+  return { categories: categories.rows as unknown as Category[], items: items.rows as unknown as Item[], partners: partners.rows as unknown as Partner[], transactions: transactions.rows as unknown as StockTransaction[], customerNames: uniquePartnerNames([...partners.rows.map(p => String(p.name)), ...customers.rows.map(row => String(row.customer_name))]) };
 }
 export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'>): Promise<{ message: string; redirect?: string }> {
   // Only the server's verified session supplies the stock operator. Client
@@ -147,8 +178,8 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       await leaf(tx, category);
       let id: number;
       if (action === 'item.add') {
-        const r = await tx.execute({ sql: 'INSERT INTO item(name,manager,category,quantity,low_stock_threshold) VALUES (?,?,?,0,5)', args: [name, owner, category] });
-        id = Number(r.lastInsertRowid);
+        id = await nextInventoryId(tx, 'item');
+        await tx.execute({ sql: 'INSERT INTO item(id,name,manager,category,quantity,low_stock_threshold) VALUES (?,?,?,?,0,5)', args: [id, name, owner, category] });
       } else {
         id = integer(f.id); checkVersion(f, await item(tx, id));
         await tx.execute({ sql: 'UPDATE item SET name=?, manager=?, category=?,version=version+1 WHERE id=?', args: [name, owner, category, id] });
@@ -167,16 +198,18 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       const id = integer(f.id), qty = integer(f.quantity), owner = actor ? actor.display_name : manager(f), current = await item(tx, id);
       checkVersion(f, current);
       const outbound = action === 'stock.out';
-      const customer = outbound ? text(f, 'customer_name') : '';
+      let customer = outbound ? cleanPartnerName(text(f, 'customer_name')) : '';
       if (outbound && qty > current.quantity) throw new InputError('출고 수량이 현재 재고보다 많습니다.');
       const remaining = current.quantity + (outbound ? -qty : qty);
       if (!Number.isSafeInteger(remaining) || remaining > 2147483647) throw new InputError('재고 수량이 허용 범위를 초과합니다.');
+      if (outbound) customer = await ensurePartner(tx, customer);
       await tx.execute({ sql: 'UPDATE item SET quantity=?,version=version+1 WHERE id=?', args: [remaining, id] });
       await tx.execute({ sql: 'INSERT INTO "transaction"(item_id,quantity,transaction_type,manager,customer_name,date) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)', args: [id, qty, outbound ? '출고' : '입고', owner, customer || null] });
       redirect = `/?category=${encodeURIComponent(current.category)}&item=${id}#item-${id}`;
     } else if (action === 'partner.add' || action === 'partner.edit') {
-      const values = [text(f, 'name'), text(f, 'contact_person', 80, false), text(f, 'phone', 50, false), text(f, 'note', 255, false)];
-      if (action === 'partner.add') await tx.execute({ sql: 'INSERT INTO partner(name,contact_person,phone,note,created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)', args: values });
+      const values = [cleanPartnerName(text(f, 'name')), text(f, 'contact_person', 80, false), text(f, 'phone', 50, false), text(f, 'note', 255, false)];
+      if (await existingPartner(tx, values[0], action === 'partner.edit' ? integer(f.id) : 0)) throw new InputError('같은 이름의 거래처가 이미 등록되어 있습니다.');
+      if (action === 'partner.add') await tx.execute({ sql: 'INSERT INTO partner(id,name,contact_person,phone,note,created_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)', args: [await nextInventoryId(tx, 'partner'), ...values] });
       else {
         const current = await tx.execute({ sql: 'SELECT version FROM partner WHERE id=? AND deleted_at IS NULL', args: [integer(f.id)] });
         if (!current.rows.length) throw new InputError('거래처를 찾을 수 없습니다.');
@@ -194,7 +227,7 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       const parent = level === 0 ? null : integer(f.parent_id);
       if (parent !== null && await depth(tx, await node(tx, parent)) !== level - 1) throw new InputError('상위 카테고리를 확인하세요.');
       await noDuplicate(tx, parent, name);
-      await tx.execute({ sql: 'INSERT INTO category(name,display_name,parent_id,created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)', args: [`category_${randomUUID()}`, name, parent] });
+      await tx.execute({ sql: 'INSERT INTO category(id,name,display_name,parent_id,created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)', args: [await nextInventoryId(tx, 'category'), `category_${randomUUID()}`, name, parent] });
     } else if (action === 'category.rename') {
       const id = integer(f.id), current = await node(tx, id), name = text(f, 'name', 80);
       checkVersion(f, current);
@@ -221,8 +254,19 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       ]);
     } else if (action === 'trash.restore') {
       await restoreTrash(tx, text(f, 'group_id', 80));
+    } else if (action === 'trash.purge' || action === 'trash.empty') {
+      if (f.confirm_permanent !== 'yes') throw new InputError('영구 삭제 확인이 필요합니다.');
+      const groups = (await tx.execute('SELECT id FROM trash_entry WHERE restored_at IS NULL')).rows.map(row => String(row.id));
+      if (action === 'trash.empty') {
+        if (text(f, 'snapshot', 64) !== trashSnapshot(groups)) throw new ConflictError('휴지통 내용이 변경되었습니다. 최신 목록을 확인한 뒤 다시 비워주세요.');
+        await purgeTrash(tx, groups);
+      } else {
+        const group = text(f, 'group_id', 80);
+        if (!groups.includes(group)) throw new ConflictError('이미 복구되었거나 삭제된 항목입니다. 최신 목록을 확인해주세요.');
+        await purgeTrash(tx, [group]);
+      }
     } else throw new InputError('지원하지 않는 요청입니다.');
-    const result = { message: action === 'trash.restore' ? '복구했습니다.' : action.endsWith('.delete') ? '휴지통으로 이동했습니다.' : '저장했습니다.', redirect };
+    const result = { message: action === 'trash.empty' ? '휴지통을 비웠습니다.' : action === 'trash.purge' ? '영구 삭제했습니다.' : action === 'trash.restore' ? '복구했습니다.' : action.endsWith('.delete') ? '휴지통으로 이동했습니다.' : '저장했습니다.', ...(redirect ? { redirect } : {}) };
     if (requestId) await tx.execute({ sql: 'INSERT INTO mutation_request(id,payload,result) VALUES (?,?,?)', args: [requestId, payload, JSON.stringify(result)] });
     await tx.commit();
     return result;

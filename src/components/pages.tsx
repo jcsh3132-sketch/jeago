@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { User } from '@/lib/auth';
 import { ActionForm, CategorySelect, DeleteButton, Field, Hidden } from './forms';
+import { PartnerInput } from './partner-input';
 import { label, categoryPath, MANAGERS, type InventoryData, type Item, type Category, type StockTransaction } from '@/lib/types';
 
 function ManagerSelect({ value }: { value?: string }) {
@@ -14,7 +15,7 @@ export function ItemEditor({ data, item, selected }: { data: InventoryData; item
 export function StockEditor({ data, item, outbound, user }: { data: InventoryData; item: Item; outbound: boolean; user: User }) {
   return <div className="form-page"><section className="form-card transaction-card"><div className="form-heading"><span className="section-kicker">{outbound ? 'OUTBOUND' : 'INBOUND'}</span><h2>{item.name}</h2><p>현재 재고 <strong>{item.quantity}개</strong> · {categoryPath(data.categories, item.category)}</p></div>
     <ActionForm action={outbound ? 'stock.out' : 'stock.in'}><Hidden name="id" value={item.id}/><Hidden name="expected_version" value={item.version}/><label className="field field-label">{outbound ? '출고' : '입고'} 수량<input name="quantity" type="number" min="1" max={outbound ? item.quantity : 2147483647} step="1" required autoFocus/></label><label className="field field-label">담당자<input value={user.display_name} readOnly aria-describedby="stock-owner-note"/></label><p id="stock-owner-note" className="muted">로그인 계정 {user.username}의 이름으로 자동 기록됩니다.</p>
-      {outbound && <><label className="field field-label">출고업체<input name="customer_name" list="partners" required maxLength={120} placeholder="거래처를 선택하거나 직접 입력하세요"/></label><datalist id="partners">{data.partners.map(p => <option key={p.id} value={p.name}/>)}</datalist><p className="muted">업체명은 이력에 저장됩니다. 자주 사용하는 업체는 <Link href="/partners">거래처 관리</Link>에 등록하세요.</p></>}
+      {outbound && <PartnerInput names={data.customerNames}/>}
       {outbound && item.quantity === 0 && <p role="status" className="form-status error">현재 재고가 없어 출고할 수 없습니다.</p>}
       <div className="form-actions"><Link href="/" className="top-btn ghost">취소</Link><button type="submit" disabled={outbound && item.quantity === 0} className={`top-btn ${outbound ? 'danger-btn' : 'success'}`}>{outbound ? '출고 처리' : '입고 처리'}</button></div>
     </ActionForm></section></div>;

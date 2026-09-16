@@ -59,7 +59,7 @@ test('inventory lifecycle, rollback, validation, concurrency, and hierarchy', as
     assert.equal((await loadInventory()).items[0].quantity, 3);
   });
   await t.test('partner CRUD and outgoing history snapshot', async () => {
-    await mutate({ action: 'partner.add', name: '업체 A', contact_person: '담당자', phone: '010', note: '메모' });
+    await assert.rejects(mutate({ action: 'partner.add', name: '업체 A', contact_person: '담당자', phone: '010', note: '메모' }), /이미 등록/);
     const id = (await loadInventory()).partners[0].id;
     await mutate({ action: 'partner.edit', id, name: '업체 B', contact_person: '', phone: '', note: '' });
     assert.equal((await loadInventory()).partners[0].name, '업체 B');

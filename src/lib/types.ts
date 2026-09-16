@@ -4,7 +4,7 @@ export type Category = { id: number; name: string; display_name: string | null; 
 export type Item = { id: number; name: string; quantity: number; low_stock_threshold: number; manager: string; category: string; version: number };
 export type Partner = { id: number; name: string; contact_person: string; phone: string; note: string; version: number };
 export type StockTransaction = { id: number; item_id: number; quantity: number; transaction_type: string; manager: string; customer_name: string | null; date: string };
-export type InventoryData = { categories: Category[]; items: Item[]; partners: Partner[]; transactions: StockTransaction[] };
+export type InventoryData = { categories: Category[]; items: Item[]; partners: Partner[]; transactions: StockTransaction[]; customerNames: string[] };
 export const label = (c?: Category) => c?.display_name || c?.name || '';
 export function ancestry(categories: Category[], key: string) {
   const leaf = categories.find(c => c.name === key);
