@@ -118,7 +118,7 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 
 ## Android APK
 
-`android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.1.1은 기존 앱과 같은 키로 서명하며 배포 사이트를 엽니다. 뒤로가기 시 표시되는 앱 시작 화면의 안내도 현재 회원 로그인 방식에 맞게 수정했습니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.
+`android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.2.0은 기존 앱과 같은 키로 서명하며 주소창 없는 앱 내부 WebView로 배포 사이트를 엽니다. 뒤로가기, 자동로그인 쿠키 유지, 로그인 만료 후 별도 로그인 화면, 연결 실패 시 다시 시도를 지원합니다. 브라우저와 앱의 로그인 저장 공간이 달라 업데이트 후 처음 한 번 다시 로그인해야 합니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.
 
 ## 회원가입 · 기기별 로그인
 
@@ -134,6 +134,6 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 - 로그인·가입 시도 제한은 DB에서 공유하며, 재고 페이지와 변경 API 모두 서버에서 인증을 확인합니다. 인증이 만료된 미확인 저장 요청은 새 탭에서 다시 로그인한 뒤 같은 요청으로 확인할 수 있습니다.
 - 계정과 세션도 운영 DB 백업에 포함되므로 백업 파일을 관리자만 접근하는 곳에 보관하세요. 백업 복원 후 강제 재로그인이 필요하면 복구한 DB의 auth_session 테이블만 비웁니다.
 
-기존 APK는 같은 운영 사이트를 열므로 로그인 기능이 자동 반영됩니다. 브라우저 프로필이 다르면 자동로그인 설정도 별도로 적용됩니다.
+기존 APK도 같은 운영 사이트를 열므로 웹 로그인 기능의 수정은 자동 반영됩니다. 주소창 제거는 APK 1.2.0 업데이트가 필요합니다. 브라우저와 앱의 자동로그인 설정은 각각 적용됩니다.
 
 인증 구현 참고: [Next.js 인증](https://nextjs.org/docs/app/guides/authentication), [OWASP 비밀번호 저장](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [브라우저 비밀번호 저장](https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API/Credential_types).

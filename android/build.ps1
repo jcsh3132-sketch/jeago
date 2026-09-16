@@ -17,6 +17,10 @@ function Run-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
 }
+$policyTests = Join-Path $build 'policy-tests'
+New-Item -ItemType Directory -Force $policyTests | Out-Null
+Run-Checked (Join-Path $jdk 'bin\javac.exe') @('-encoding','UTF-8','--release','8','-d',$policyTests,(Join-Path $PSScriptRoot 'src\com\jcsh3132\jeago\NavigationPolicy.java'),(Join-Path $PSScriptRoot 'tests\NavigationPolicyTest.java'))
+Run-Checked (Join-Path $jdk 'bin\java.exe') @('-cp',$policyTests,'com.jcsh3132.jeago.NavigationPolicyTest')
 Run-Checked (Join-Path $buildTools 'aapt2.exe') @('compile','--dir',(Join-Path $PSScriptRoot 'res'),'-o',(Join-Path $build 'resources.zip'))
 Run-Checked (Join-Path $buildTools 'aapt2.exe') @('link','-o',(Join-Path $build 'unsigned.apk'),'-I',$platform,'--manifest',(Join-Path $PSScriptRoot 'AndroidManifest.xml'),'--java',$generated,'--min-sdk-version','23','--target-sdk-version','35',(Join-Path $build 'resources.zip'))
 $javaFiles = @(Get-ChildItem (Join-Path $PSScriptRoot 'src'),$generated -Filter '*.java' -Recurse | ForEach-Object { $_.FullName })
@@ -38,12 +42,12 @@ if (!(Test-Path $keyStore)) {
     Run-Checked (Join-Path $jdk 'bin\keytool.exe') @('-genkeypair','-keystore',$keyStore,'-storetype','PKCS12','-storepass:env','JEAGO_SIGNING_PASSWORD','-keypass:env','JEAGO_SIGNING_PASSWORD','-alias','jeago','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=Jeago Inventory, OU=Mobile, O=Jeago, C=KR')
 }
 $env:JEAGO_SIGNING_PASSWORD = (Get-Content -LiteralPath $passwordFile -Raw).Trim()
-$apk = Join-Path $output 'jeago-1.1.1.apk'
+$apk = Join-Path $output 'jeago-1.2.0.apk'
 try {
     Run-Checked (Join-Path $jdk 'bin\java.exe') @('-jar',(Join-Path $buildTools 'lib\apksigner.jar'),'sign','--ks',$keyStore,'--ks-key-alias','jeago','--ks-pass','env:JEAGO_SIGNING_PASSWORD','--key-pass','env:JEAGO_SIGNING_PASSWORD','--out',$apk,(Join-Path $build 'aligned.apk'))
 } finally { Remove-Item Env:\JEAGO_SIGNING_PASSWORD -ErrorAction SilentlyContinue }
 Run-Checked (Join-Path $jdk 'bin\java.exe') @('-jar',(Join-Path $buildTools 'lib\apksigner.jar'),'verify','--verbose','--print-certs',$apk)
 Run-Checked (Join-Path $buildTools 'zipalign.exe') @('-c','-p','4',$apk)
 Run-Checked (Join-Path $buildTools 'aapt2.exe') @('dump','badging',$apk)
-(Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash | Set-Content (Join-Path $output 'jeago-1.1.1.apk.sha256') -Encoding ascii
+(Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash | Set-Content (Join-Path $output 'jeago-1.2.0.apk.sha256') -Encoding ascii
 Write-Output "APK: $apk"
