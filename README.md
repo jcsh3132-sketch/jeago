@@ -13,7 +13,7 @@ npm.cmd run db:prepare
 npm.cmd run dev
 ```
 
-브라우저에서 http://localhost:3000 을 엽니다. 처음 설치는 `03_install_nextjs.bat`, 이후 실행은 `04_start_nextjs.bat`을 더블클릭해도 됩니다. 기존 `01`, `02` 배치 파일은 Flask용입니다.
+브라우저에서 http://localhost:3000 을 엽니다. 처음 설치는 `03_install_nextjs.bat`, 이후 실행은 `04_start_nextjs.bat`을 더블클릭해도 됩니다. 이 파일들은 현재 Next.js 개발·점검용입니다.
 
 기본 바인딩은 로컬 PC입니다. 내부 네트워크 접속이 필요하면 `npm.cmd run dev -- --hostname 0.0.0.0`으로 실행하세요.
 
@@ -22,8 +22,9 @@ npm.cmd run dev
 - 원본: `instance/inventory.db` — Flask 데이터로 그대로 보존합니다.
 - Next.js: `instance/inventory-next.db` — `db:prepare`가 SQLite 백업 API로 최초 1회 복제합니다.
 - 복제 파일이 이미 있으면 덮어쓰지 않습니다. 두 DB는 이후 자동 동기화되지 않으므로 운영 입력은 한쪽 프로그램에서만 하세요.
-- 기존 Python 소스, 템플릿, 마이그레이션 파일은 비교와 복구를 위해 남겨 두었습니다.
-- 이 프로젝트의 원본 DB는 카테고리 v3 구조입니다. 훨씬 오래된 DB를 교체해서 쓰려면 먼저 기존 Flask 마이그레이션을 완료해야 합니다.
+- 더 이상 사용하지 않는 Flask 소스(`app.py`, `models.py`), Python 패키지 목록·설치/실행 배치 파일, HTML 템플릿, 이전 CSS, Alembic 마이그레이션, Python 캐시와 템플릿 편집기 설정을 정리했습니다. 이전 소스는 Git 기록에서 복원할 수 있습니다.
+- 원본 DB, Next.js 점검용 DB, 운영 DB 백업, 환경변수, APK 소스·빌드 도구·서명키는 보존합니다.
+- 이 프로젝트의 원본 DB는 카테고리 v3 구조입니다. 더 오래된 DB를 추가로 이전할 때는 스키마 호환성을 별도로 확인하세요.
 
 ## 전환한 기능
 

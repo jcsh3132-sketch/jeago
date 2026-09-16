@@ -3,8 +3,7 @@
 .auth-brand{margin-bottom:28px}
 .auth-brand a{display:flex;gap:12px;align-items:center;text-decoration:none;color:#172943}
 .auth-logo{display:grid;place-items:center;width:44px;height:44px;background:#315df3;color:white;font-size:31px;border-radius:13px}
-.auth-brand strong{display:flex;flex-direction:column;letter-spacing:2px;font-size:19px;line-height:1.4}
-.auth-brand strong span{font-size:10px;color:#73819b;letter-spacing:2px}
+.auth-brand strong{letter-spacing:-.04em;font-size:24px;line-height:1.4}
 .auth-grid{width:100%;max-width:440px}
 .auth-card{background:white;border:1px solid #e4eaf3;border-radius:20px;padding:36px;box-shadow:0 12px 36px #263a680a}
 .auth-card h1{font-size:28px;letter-spacing:-1px;margin:0 0 10px}

@@ -42,7 +42,7 @@ export function AuthPanel({ signup = false, registered = false }: { signup?: boo
     } catch { setError(signup ? '연결을 확인해주세요. 가입 결과가 불확실하면 입력한 ID와 PW로 로그인을 시도하세요.' : '연결을 확인한 뒤 다시 로그인해주세요.'); setPending(false); }
   }
   return <main className="auth-page">
-    <div className="auth-brand"><Link href="/" aria-label="재고 관리 홈"><span className="auth-logo">▦</span><strong>JEAGO<span>재고 관리</span></strong></Link></div>
+    <div className="auth-brand"><Link href="/" aria-label="재고 관리 홈"><span className="auth-logo">▦</span><strong>재고 관리</strong></Link></div>
     <div className="auth-grid"><section className="auth-card" aria-labelledby="auth-title"><h1 id="auth-title">{signup ? '회원가입' : '로그인'}</h1><p className="auth-card-description">{signup ? '가입 정보를 입력하세요.' : 'ID와 PW를 입력하세요.'}</p>
       {registered && <p role="status" className="auth-success">회원가입이 완료되었습니다. ID와 PW로 로그인해주세요.</p>}
       <form method="post" action={`/api/auth/${signup ? 'signup' : 'login'}`} onSubmit={submit} autoComplete="on" className="auth-form"><fieldset disabled={pending}>
