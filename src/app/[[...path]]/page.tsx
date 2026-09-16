@@ -1,4 +1,7 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { currentUser } from '@/lib/auth-request';
+import { AuthPanel } from '@/components/auth-panel';
+import { Shell } from '@/components/shell';
 import { loadInventory } from '@/lib/inventory';
 import { Dashboard } from '@/components/dashboard';
 import { Categories, History, ItemEditor, Partners, StockEditor } from '@/components/pages';
@@ -7,6 +10,15 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 type Props = { params: Promise<{ path?: string[] }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 export default async function Page({ params, searchParams }: Props) {
+  const user = await currentUser();
+  if (!user) {
+    const { path = [] } = await params;
+    if (path.length) redirect('/');
+    return <AuthPanel registered={(await searchParams).registered === '1'}/>;
+  }
+  return <Shell username={user.display_name}><InventoryPage params={params} searchParams={searchParams}/></Shell>;
+}
+async function InventoryPage({ params, searchParams }: Props) {
   const { path = [] } = await params;
   const raw = await searchParams;
   const query: Record<string, string> = {};

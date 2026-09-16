@@ -26,6 +26,10 @@ async function initialize() {
       'CREATE TABLE IF NOT EXISTS partner (id INTEGER PRIMARY KEY, name TEXT NOT NULL, contact_person TEXT DEFAULT \'\', phone TEXT DEFAULT \'\', note TEXT DEFAULT \'\', created_at TEXT DEFAULT CURRENT_TIMESTAMP)',
       'CREATE INDEX IF NOT EXISTS idx_item_category ON item(category)',
       'CREATE INDEX IF NOT EXISTS idx_transaction_item ON "transaction"(item_id)',
+      'CREATE TABLE IF NOT EXISTS app_user (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
+      'CREATE TABLE IF NOT EXISTS auth_session (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_user(id), expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
+      'CREATE INDEX IF NOT EXISTS idx_auth_session_expiry ON auth_session(expires_at)',
+      'CREATE TABLE IF NOT EXISTS auth_limit (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, expires_at INTEGER NOT NULL)',
     ], 'write');
     // Serialize additive schema upgrades across cold starts without replacing legacy tables.
     const upgrade = await db.transaction('write');

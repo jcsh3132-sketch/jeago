@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
+import { loginForTest } from './auth-helper';
 test('legacy data renders, forms work, and desktop/mobile routes are usable', async ({ page, request }) => {
+  const account = await loginForTest(page.request);
+  await request.post('/api/auth/login', { headers: { Origin: 'http://127.0.0.1:3100' }, data: account });
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   const database = new DatabaseSync('instance/inventory-next.db', { readOnly: true });

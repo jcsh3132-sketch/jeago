@@ -42,6 +42,9 @@ export function ActionForm({ action, children, className, confirm, onSuccess }: 
       const res = await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
       const result = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          setUncertain(body); setError(true); setMessage('로그인이 만료되었습니다. 새 탭에서 로그인한 뒤 저장 결과 확인을 누르세요.'); return;
+        }
         if (res.status >= 400 && res.status < 500) {
           sessionStorage.removeItem(key); setUncertain(null); setConflict(res.status === 409);
           setError(true); setMessage(result.message || '입력 내용을 확인하세요.'); return;
@@ -63,7 +66,7 @@ export function ActionForm({ action, children, className, confirm, onSuccess }: 
     <fieldset disabled={pending || !!uncertain || conflict} className="action-fields">{children}</fieldset>
     {pending && <span className="form-status" role="status">저장 중…</span>}
     {message && <span className={`form-status ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{message}</span>}
-    {uncertain && <button type="button" disabled={pending} className="top-btn ghost" onClick={() => send(uncertain)}>저장 결과 확인</button>}
+    {uncertain && <><button type="button" disabled={pending} className="top-btn ghost" onClick={() => send(uncertain)}>저장 결과 확인</button><a href="/" target="_blank" rel="noopener" className="top-btn ghost">새 탭에서 로그인</a></>}
     {conflict && <button type="button" className="top-btn ghost" onClick={() => location.reload()}>최신 내용 불러오기</button>}
   </form>;
 }

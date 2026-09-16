@@ -77,7 +77,7 @@ GitHub 저장소는 `jcsh3132-sketch/jeago`, Vercel 프로젝트는 `jin-e756/je
 1. 원격 DB를 만들고 실제 사용할 `inventory-next.db` 데이터를 가져옵니다. ID와 카테고리 키를 보존하세요.
 2. Vercel Marketplace 연동이 제공하는 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`을 사용합니다. 직접 설정하는 `DATABASE_URL`, `DATABASE_AUTH_TOKEN`도 지원합니다. 토큰은 Git에 커밋하지 않습니다.
 3. GitHub 저장소를 연결하고 Framework Preset을 Next.js로 선택합니다.
-4. 2026-09-14 사용자 요청에 따라 공용 운영을 위해 Vercel Authentication을 해제했습니다. 현재 사이트와 APK는 로그인 없이 재고 조회·입출고·수정·삭제가 가능합니다. 앱 자체에는 별도 권한 관리가 없습니다. Origin 검사는 사용자 인증을 대신하지 않습니다.
+4. 2026-09-16부터 사이트 자체의 ID/PW 로그인을 사용합니다. 운영 도메인 `jeago.vercel.app`에서는 회원가입·로그인 후 공용 재고를 이용합니다. Vercel 계정 로그인은 필요하지 않습니다. 과거 배포 URL은 Vercel Standard Protection으로 보호하여 이전 공개 버전으로 접근하지 못하게 합니다.
 
 `.env.example`에 연결 예시가 있습니다. Vercel에서 로컬 DB가 지정되면 실행을 중단해 임시 파일에 재고를 잘못 저장하지 않도록 했습니다.
 
@@ -118,3 +118,20 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 ## Android APK
 
 `android/`에 APK 소스와 재빌드 스크립트가 있습니다. 설치·서명키 복구 방법은 [Android 안내](android/README.md)를 참고하세요. APK 1.1.0은 기존 앱과 같은 키로 서명하며 배포 사이트를 엽니다. APK와 관리자용 서명키 백업은 별도로 제공합니다.
+
+## 회원가입 · 기기별 로그인
+
+- 메인 `/`에서 로그인하고 `/signup`에서 회원가입합니다. 가입 회원은 모두 같은 재고를 함께 관리합니다. 관리자 승인이나 역할별 권한 구분은 없습니다.
+- ID는 영문·숫자로 시작하는 3~32자의 영문, 숫자, 점, 밑줄, 하이픈이며 대소문자를 구분하지 않습니다. 이름은 1~50자, PW는 10~128자입니다.
+- **ID 저장**: 로그인 성공 시 해당 브라우저에 ID만 저장합니다. 체크를 해제하면 저장한 ID가 삭제됩니다.
+- **PW 저장**: 지원 브라우저의 비밀번호 관리자에 저장을 요청합니다. 브라우저의 저장 승인·자동완성 설정에 따라 작동합니다. 사이트의 localStorage/sessionStorage에는 PW를 보관하지 않습니다. 기존에 브라우저에 저장한 PW 삭제는 브라우저 설정에서 합니다.
+- **자동로그인**: 선택한 기기·브라우저에만 30일짜리 인증 쿠키를 발급합니다. 다른 기기에서는 별도로 로그인하고 체크해야 합니다. 브라우저 데이터 삭제·시크릿 모드 종료 또는 로그아웃 시 유지되지 않습니다.
+- 자동로그인을 선택하지 않으면 최대 12시간의 브라우저 세션 쿠키를 사용합니다. 브라우저의 세션 복원 설정에 따라 재시작 후에도 세션이 복원될 수 있습니다.
+- 로그아웃은 해당 세션을 서버에서 폐기합니다. 다른 기기의 별도 로그인 세션은 유지됩니다.
+- 비밀번호는 계정별 salt를 사용한 scrypt(N=32768, r=8, p=3) 해시로, 세션 토큰은 SHA-256 해시로 DB에 보관합니다. 운영 쿠키는 Secure, HttpOnly, SameSite=Lax와 __Host- 접두사를 사용합니다.
+- 로그인·가입 시도 제한은 DB에서 공유하며, 재고 페이지와 변경 API 모두 서버에서 인증을 확인합니다. 인증이 만료된 미확인 저장 요청은 새 탭에서 다시 로그인한 뒤 같은 요청으로 확인할 수 있습니다.
+- 계정과 세션도 운영 DB 백업에 포함되므로 백업 파일을 관리자만 접근하는 곳에 보관하세요. 백업 복원 후 강제 재로그인이 필요하면 복구한 DB의 auth_session 테이블만 비웁니다.
+
+기존 APK는 같은 운영 사이트를 열므로 로그인 기능이 자동 반영됩니다. 브라우저 프로필이 다르면 자동로그인 설정도 별도로 적용됩니다.
+
+인증 구현 참고: [Next.js 인증](https://nextjs.org/docs/app/guides/authentication), [OWASP 비밀번호 저장](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [브라우저 비밀번호 저장](https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API/Credential_types).

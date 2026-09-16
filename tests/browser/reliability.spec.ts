@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { loginForTest } from './auth-helper';
 
 test('lost responses can be recovered after reload; stale edits and trash work on mobile', async ({ page, request }) => {
+  const account = await loginForTest(page.request);
+  await request.post('/api/auth/login', { headers: { Origin: 'http://127.0.0.1:3100' }, data: account });
   await page.goto('/add');
   await page.getByLabel('모델명', { exact: true }).fill('E2E-복구검증');
   await page.getByLabel('품목 카테고리').selectOption({ index: 1 });
