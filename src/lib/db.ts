@@ -36,6 +36,7 @@ async function initialize() {
     const upgrade = await db.transaction('write');
     try {
       const userColumns = new Set((await upgrade.execute('PRAGMA table_info(app_user)')).rows.map(c => c.name));
+      if (!userColumns.has('account_version')) await upgrade.execute('ALTER TABLE app_user ADD COLUMN account_version INTEGER NOT NULL DEFAULT 0');
       for (const column of ['email', 'phone', 'department']) {
         if (!userColumns.has(column)) await upgrade.execute(`ALTER TABLE app_user ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
       }
@@ -46,6 +47,8 @@ async function initialize() {
         if (statements.length) await upgrade.batch(statements);
       }
       await upgrade.batch([
+        'CREATE TABLE IF NOT EXISTS app_admin (singleton INTEGER PRIMARY KEY CHECK(singleton=1),user_id TEXT NOT NULL UNIQUE REFERENCES app_user(id))',
+        'CREATE TABLE IF NOT EXISTS admin_audit (id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,target_id TEXT NOT NULL,action TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS inventory_sequence (name TEXT PRIMARY KEY,value INTEGER NOT NULL)',
         'CREATE TABLE IF NOT EXISTS inventory_migration (name TEXT PRIMARY KEY)',
         'CREATE TABLE IF NOT EXISTS mutation_request (id TEXT PRIMARY KEY, payload TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',

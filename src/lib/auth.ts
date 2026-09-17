@@ -132,9 +132,9 @@ export async function updateAccount(token: string | undefined, action: 'profile'
   try {
     const active = (await tx.execute({ sql: 'SELECT u.id FROM app_user u JOIN auth_session s ON s.user_id=u.id WHERE u.id=? AND u.password_hash=? AND s.token_hash=? AND s.expires_at>?', args: [user.id, oldHash, digest(token!), Date.now()] })).rows;
     if (!active.length) throw new AuthError('계정 또는 로그인 상태가 변경되었습니다. 다시 로그인해주세요.', 401);
-    if (profile) await tx.execute({ sql: 'UPDATE app_user SET username=?,display_name=?,email=?,phone=?,department=? WHERE id=?', args: [profile.username, profile.display_name, profile.email, profile.phone, profile.department, user.id] });
+    if (profile) await tx.execute({ sql: 'UPDATE app_user SET username=?,display_name=?,email=?,phone=?,department=?,account_version=account_version+1 WHERE id=?', args: [profile.username, profile.display_name, profile.email, profile.phone, profile.department, user.id] });
     else {
-      await tx.execute({ sql: 'UPDATE app_user SET password_hash=? WHERE id=?', args: [nextHash, user.id] });
+      await tx.execute({ sql: 'UPDATE app_user SET password_hash=?,account_version=account_version+1 WHERE id=?', args: [nextHash, user.id] });
       await tx.execute({ sql: 'DELETE FROM auth_session WHERE user_id=?', args: [user.id] });
     }
     await tx.commit();

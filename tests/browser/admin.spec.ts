@@ -1,0 +1,54 @@
+import { test, expect } from '@playwright/test';
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { loginForTest } from './auth-helper';
+
+test('only assigned admin can list/edit members and reset their passwords on mobile', async ({ page, request }) => {
+  const headers = { Origin: 'http://127.0.0.1:3100' };
+  expect((await request.get('/api/admin/users')).status()).toBe(401);
+  const member = await loginForTest(request);
+  expect((await request.get('/api/admin/users')).status()).toBe(403);
+  expect((await request.post('/api/auth/admin-profile', { headers, data: { is_admin: true } })).status()).toBe(403);
+  const admin = await loginForTest(page.request);
+  await page.goto('/account');
+  await expect(page.getByRole('link', { name: '회원 관리', exact: true })).toHaveCount(0);
+  const file = readdirSync('work').filter(name => /^browser-[a-f0-9-]+\.db$/.test(name)).map(name => join('work', name)).sort((a,b) => statSync(b).birthtimeMs - statSync(a).birthtimeMs)[0];
+  const fixture = new DatabaseSync(file);
+  try {
+    const owner = fixture.prepare('SELECT id FROM app_user WHERE username=?').get(admin.username);
+    if (!owner) throw new Error('Isolated browser database does not contain this test account.');
+    fixture.prepare('INSERT INTO app_admin(singleton,user_id) VALUES (1,?)').run(String(owner.id));
+  } finally { fixture.close(); }
+  await page.reload();
+  await page.getByRole('link', { name: '회원 관리', exact: true }).click();
+  const members = await (await page.request.get('/api/admin/users')).json();
+  expect(JSON.stringify(members)).not.toContain('password_hash');
+  await page.getByLabel('회원 검색').fill(member.username);
+  await page.getByRole('button', { name: new RegExp(member.username) }).click();
+  const info = page.locator('form').filter({ has: page.getByRole('button', { name: '회원 정보 저장', exact: true }) });
+  await info.getByLabel('이름', { exact: true }).fill('관리자 수정 이름');
+  await info.getByLabel('부서').fill('물류팀');
+  await info.getByLabel('관리자 비밀번호').fill('0000');
+  await info.getByRole('button', { name: '회원 정보 저장' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: '관리자 비밀번호' })).toBeVisible();
+  await info.getByLabel('관리자 비밀번호').fill(admin.password);
+  await info.getByRole('button', { name: '회원 정보 저장' }).click();
+  await expect(page.getByText('회원 정보를 저장했습니다.', { exact: true })).toBeVisible();
+  await expect(info.getByLabel('관리자 비밀번호')).toHaveValue('');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.screenshot({ path: 'work/admin-members-mobile.png', fullPage: true });
+  const security = page.locator('form').filter({ has: page.getByRole('button', { name: '비밀번호 재설정', exact: true }) });
+  await security.getByLabel('새 비밀번호', { exact: true }).fill('5678');
+  await security.getByLabel('새 비밀번호 확인').fill('5678');
+  await security.getByLabel('관리자 비밀번호').fill(admin.password);
+  page.once('dialog', dialog => dialog.accept());
+  await security.getByRole('button', { name: '비밀번호 재설정' }).click();
+  await expect(page.getByText('비밀번호를 변경했습니다. 해당 회원은 새 비밀번호로 로그인해야 합니다.')).toBeVisible();
+  expect((await request.get('/api/admin/users')).status()).toBe(401);
+  expect((await request.post('/api/auth/login', { headers, data: { username: member.username, password: '5678' } })).ok()).toBe(true);
+  expect((await request.get('/api/admin/users')).status()).toBe(403);
+  expect((await page.request.get('/api/admin/users')).ok()).toBe(true);
+  expect((await page.request.post('/api/auth/admin-password', { headers: { Origin: 'https://example.com' }, data: {} })).status()).toBe(403);
+});

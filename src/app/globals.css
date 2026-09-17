@@ -481,3 +481,5 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
 @media(max-width:760px){.partner-combobox>input{font-size:16px}.trash-actions{width:100%}.trash-actions .top-btn{min-height:44px}}
 
 .brand-home{text-decoration:none;color:inherit}.home-refresh{display:inline-flex;align-items:center;min-height:28px;text-decoration:none;color:inherit}.home-refresh:hover{color:var(--blue)}
+
+.admin-entry{max-width:900px;margin:0 auto 18px;display:flex;justify-content:flex-end}.member-picker{display:grid;gap:8px;max-height:300px;overflow-y:auto}.member-picker button{display:flex;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;text-align:left;cursor:pointer;overflow-wrap:anywhere}.member-picker button[aria-pressed=true]{background:var(--blue-soft);border-color:var(--blue)}.member-picker span{color:var(--muted);font-size:12px}.member-editor{display:grid;gap:20px}.member-management input{font-size:16px!important}
