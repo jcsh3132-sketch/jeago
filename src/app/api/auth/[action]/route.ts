@@ -4,13 +4,13 @@ import { AuthError, authenticate, credentials, createSession, limitAuth, registe
 export const runtime = 'nodejs';
 export async function POST(request: NextRequest, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
-  if (!['login', 'signup', 'logout', 'profile', 'password', 'renew', 'admin-profile', 'admin-password'].includes(action)) return NextResponse.json({ message: '지원하지 않는 요청입니다.' }, { status: 404 });
+  if (!['login', 'signup', 'logout', 'profile', 'password', 'renew', 'admin-profile', 'admin-password', 'admin-transfer'].includes(action)) return NextResponse.json({ message: '지원하지 않는 요청입니다.' }, { status: 404 });
   const origin = request.headers.get('origin');
   try { if (!origin || new URL(origin).host !== (request.headers.get('x-forwarded-host') || request.headers.get('host'))) throw new Error(); }
   catch { return NextResponse.json({ message: '허용하지 않는 요청 출처입니다.' }, { status: 403 }); }
   const options = { httpOnly: true, secure: secureCookies, sameSite: 'lax' as const, path: '/' };
   try {
-    if (action === 'admin-profile' || action === 'admin-password') await requireAdministrator(request.cookies.get(SESSION_COOKIE)?.value);
+    if (action === 'admin-profile' || action === 'admin-password' || action === 'admin-transfer') await requireAdministrator(request.cookies.get(SESSION_COOKIE)?.value);
     if (action === 'renew') {
       const token = request.cookies.get(SESSION_COOKIE)?.value;
       const remembered = await renewRememberedSession(token);
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     if (!fields || typeof fields !== 'object' || Array.isArray(fields)) throw new AuthError('입력 내용을 확인하세요.');
     const ip = (request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
     await limitAuth(`${action}:ip:${ip}`, action === 'signup' ? 10 : 60, 900);
-    if (action === 'admin-profile' || action === 'admin-password') {
+    if (action === 'admin-profile' || action === 'admin-password' || action === 'admin-transfer') {
       await editMember(request.cookies.get(SESSION_COOKIE)?.value, action, fields);
       return NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
     }

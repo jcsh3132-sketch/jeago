@@ -12,9 +12,10 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
     if (!response.ok) throw new Error('회원 목록을 다시 불러오지 못했습니다. 관리자 로그인 상태를 확인해주세요.');
     setMembers((await response.json()).members);
   }
-  async function submit(event: FormEvent<HTMLFormElement>, action: 'admin-profile' | 'admin-password') {
+  async function submit(event: FormEvent<HTMLFormElement>, action: 'admin-profile' | 'admin-password' | 'admin-transfer') {
     event.preventDefault(); if (!member || pending) return;
     const form = event.currentTarget, fields = Object.fromEntries(new FormData(form));
+    if (action === 'admin-transfer' && !window.confirm(`${member.display_name} (${member.username}) 회원에게 관리자 권한을 위임합니다. 본인은 즉시 일반 회원으로 변경됩니다. 진행하시겠습니까?`)) return;
     if (action === 'admin-password' && !window.confirm(`${member.username} 회원의 비밀번호를 변경하고 해당 회원의 모든 기기에서 로그아웃합니다. 진행하시겠습니까?`)) return;
     setPending(true); setMessage(''); setError(false);
     try {
@@ -22,6 +23,7 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || '수정하지 못했습니다.');
       form.reset(); form.dataset.dirty = 'false';
+      if (action === 'admin-transfer') { window.alert('관리자 권한을 위임했습니다. 본인은 일반 회원으로 변경되었습니다.'); window.location.replace('/account'); return; }
       await refresh();
       setMessage(action === 'admin-profile' ? '회원 정보를 저장했습니다.' : '비밀번호를 변경했습니다. 해당 회원은 새 비밀번호로 로그인해야 합니다.');
     } catch (failure) {
@@ -51,6 +53,13 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
         <label className="field field-label">새 비밀번호 확인<input name="password_confirm" type="password" autoComplete="new-password" required minLength={4} maxLength={128}/></label>
         <label className="field field-label">관리자 비밀번호<input name="admin_password" type="password" autoComplete="off" required minLength={4} maxLength={128}/></label>
         <button className="top-btn primary">비밀번호 재설정</button>
+      </fieldset></form>
+    </section>
+    <section className="form-card"><div className="form-heading"><h2>관리자 위임</h2><p>{member.display_name} ({member.username}) 회원에게 관리자 권한을 넘깁니다. 완료하면 본인은 일반 회원으로 변경되며, 관리자는 1명만 유지됩니다.</p></div>
+      <form onSubmit={event => submit(event, 'admin-transfer')} data-pending={pending} onChange={event => { event.currentTarget.dataset.dirty = 'true'; }}><fieldset disabled={pending} className="action-fields">
+        <label className="field field-label">위임할 회원 ID 확인<input name="confirm_username" required maxLength={32} autoComplete="off" autoCapitalize="none" placeholder={member.username}/></label>
+        <label className="field field-label">관리자 비밀번호<input name="admin_password" type="password" autoComplete="off" required minLength={4} maxLength={128}/></label>
+        <button className="top-btn primary">관리자 권한 위임</button>
       </fieldset></form>
     </section>
   </div>}

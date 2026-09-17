@@ -146,7 +146,7 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 
 관리자는 **내 계정 → 회원 관리**에서 회원 ID·이름·이메일·연락처·부서를 수정하거나 비밀번호를 재설정할 수 있습니다. 저장할 때 관리자 본인의 비밀번호를 확인합니다. 비밀번호 재설정은 4~128자이며 해당 회원의 모든 기존 세션을 종료합니다. 기존 비밀번호는 표시하지 않습니다. 본인 정보는 내 계정에서 수정합니다.
 
-관리자 권한은 기존 `jcsh44` 계정의 고유 ID를 `app_admin`의 단일 행에 명시적으로 연결합니다. 로그인 ID가 바뀌거나 같은 ID로 다른 사람이 가입해도 권한이 이전되지 않으며, 공개 API로 권한을 부여할 수 없습니다. 수정 시 계정 버전을 확인해 동시 수정을 방지하고, 관리자 작업 종류와 대상·시간을 `admin_audit`에 기록합니다.
+관리자 권한은 기존 `jcsh44` 계정의 고유 ID를 `app_admin`의 단일 행에 명시적으로 연결합니다. 로그인 ID가 바뀌거나 같은 ID로 다른 사람이 가입해도 권한이 이전되지 않으며, 현재 관리자만 본인 비밀번호를 확인한 뒤 다른 회원에게 권한을 위임할 수 있습니다. 수정 시 계정 버전을 확인해 동시 수정을 방지하고, 관리자 작업 종류와 대상·시간을 `admin_audit`에 기록합니다.
 - ID는 영문·숫자로 시작하는 3~32자의 영문, 숫자, 점, 밑줄, 하이픈이며 대소문자를 구분하지 않습니다. 이름은 1~50자, PW는 4~128자입니다.
 - **ID 저장**: 로그인 성공 시 해당 브라우저에 ID만 저장합니다. 체크를 해제하면 저장한 ID가 삭제됩니다.
 - **PW 저장**: 지원 브라우저의 비밀번호 관리자에 저장을 요청합니다. 브라우저의 저장 승인·자동완성 설정에 따라 작동합니다. 사이트의 localStorage/sessionStorage에는 PW를 보관하지 않습니다. 기존에 브라우저에 저장한 PW 삭제는 브라우저 설정에서 합니다.
@@ -161,3 +161,7 @@ node scripts/migrate-database.mjs --env .env.restore.local --source work/backups
 기존 APK도 같은 운영 사이트를 열므로 웹 로그인 기능의 수정은 자동 반영됩니다. 주소창 제거는 APK 1.2.0 업데이트가 필요합니다. 브라우저와 앱의 자동로그인 설정은 각각 적용됩니다.
 
 인증 구현 참고: [Next.js 인증](https://nextjs.org/docs/app/guides/authentication), [OWASP 비밀번호 저장](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [브라우저 비밀번호 저장](https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API/Credential_types).
+
+## 관리자 위임
+
+내 계정 → 회원 관리에서 대상 회원을 선택하고 하단 관리자 위임에 대상 ID와 현재 관리자 비밀번호를 입력합니다. 확인 후 단일 관리자 행을 트랜잭션으로 교체하므로 관리자는 항상 1명입니다. 기존 관리자의 모든 세션은 즉시 일반 회원 권한으로 동작하며 새 관리자는 내 계정을 다시 열면 회원 관리가 표시됩니다. 위임 이력은 admin_audit에 기록합니다. 현재 관리자를 자동으로 jcsh44로 되돌리는 동작은 없습니다.

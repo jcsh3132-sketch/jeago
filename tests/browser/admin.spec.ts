@@ -51,4 +51,13 @@ test('only assigned admin can list/edit members and reset their passwords on mob
   expect((await request.get('/api/admin/users')).status()).toBe(403);
   expect((await page.request.get('/api/admin/users')).ok()).toBe(true);
   expect((await page.request.post('/api/auth/admin-password', { headers: { Origin: 'https://example.com' }, data: {} })).status()).toBe(403);
+  const transfer = page.locator('form').filter({ has: page.getByRole('button', { name: '관리자 권한 위임', exact: true }) });
+  await transfer.getByLabel('위임할 회원 ID 확인').fill(member.username);
+  await transfer.getByLabel('관리자 비밀번호').fill(admin.password);
+  page.on('dialog', dialog => dialog.accept());
+  await transfer.getByRole('button', { name: '관리자 권한 위임', exact: true }).click();
+  await expect(page).toHaveURL(/\/account$/);
+  await expect(page.getByRole('link', { name: '회원 관리', exact: true })).toHaveCount(0);
+  expect((await page.request.get('/api/admin/users')).status()).toBe(403);
+  expect((await request.get('/api/admin/users')).ok()).toBe(true);
 });
