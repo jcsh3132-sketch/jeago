@@ -4,11 +4,12 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { RefreshStatus } from './refresh-status';
 import { LogoutButton } from './auth-panel';
+import { SessionRenewal } from './session-renewal';
 const nav = [['/', '▦', '재고 현황'], ['/add', '＋', '모델 등록'], ['/transactions', '↻', '입출고 내역'], ['/categories', '≡', '카테고리 관리'], ['/partners', '◎', '거래처 관리'], ['/trash', '↶', '휴지통']];
 export function Shell({ children, username }: { children: ReactNode; username: string }) {
   const path = usePathname();
   const title = nav.find(n => n[0] === path)?.[2] || (path === '/account' ? '내 계정' : path.startsWith('/edit/') ? '모델 수정' : path.startsWith('/inbound/') ? '입고 처리' : path.startsWith('/outbound/') ? '출고 처리' : path.startsWith('/history/') ? '입출고 이력' : '재고 관리');
-  return <div className="app-shell">
+  return <div className="app-shell"><SessionRenewal/>
     <aside className="app-sidebar"><div className="brand"><div className="brand-mark">▦</div><div><strong>재고 관리</strong><span>재고 · 입고 · 출고</span></div></div>
       <nav className="side-nav" aria-label="주 메뉴">{nav.map(([href, icon, text]) => <Link key={href} href={href} className={`side-link ${path === href ? 'active' : ''}`}><span className="nav-icon">{icon}</span><span>{text}</span></Link>)}</nav>
       <div className="sidebar-footer"><span className="status-dot"/><div><b>내부 운영 시스템</b><small>재고 · 입출고 · 거래처</small></div></div></aside>

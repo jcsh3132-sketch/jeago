@@ -49,13 +49,13 @@ export function AuthPanel({ signup = false, registered = false, passwordChanged 
       <form method="post" action={`/api/auth/${signup ? 'signup' : 'login'}`} onSubmit={submit} autoComplete="on" className="auth-form"><fieldset disabled={pending}>
         {signup && <label>이름<input name="display_name" autoComplete="name" maxLength={50} required placeholder="사용할 이름을 입력하세요"/></label>}
         <label>ID<input name="username" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" required placeholder={signup ? '영문·숫자 등 3~32자' : 'ID를 입력하세요'}/></label>
-        <label>PW<span className="auth-password"><input name="password" aria-label="PW" type={show ? 'text' : 'password'} autoComplete={signup ? 'new-password' : savePassword ? 'current-password' : 'off'} minLength={10} maxLength={128} required placeholder={signup ? '10자 이상 입력하세요' : 'PW를 입력하세요'}/><button type="button" onClick={() => setShow(!show)} aria-label={show ? '비밀번호 숨기기' : '비밀번호 보기'}>{show ? '숨김' : '보기'}</button></span></label>
-        {signup && <label>PW 확인<input name="password_confirm" type={show ? 'text' : 'password'} autoComplete="new-password" minLength={10} maxLength={128} required placeholder="PW를 다시 입력하세요"/></label>}
+        <label>PW<span className="auth-password"><input name="password" aria-label="PW" type={show ? 'text' : 'password'} autoComplete={signup ? 'new-password' : savePassword ? 'current-password' : 'off'} minLength={4} maxLength={128} required placeholder={signup ? '4자 이상 입력하세요' : 'PW를 입력하세요'}/><button type="button" onClick={() => setShow(!show)} aria-label={show ? '비밀번호 숨기기' : '비밀번호 보기'}>{show ? '숨김' : '보기'}</button></span></label>
+        {signup && <label>PW 확인<input name="password_confirm" type={show ? 'text' : 'password'} autoComplete="new-password" minLength={4} maxLength={128} required placeholder="PW를 다시 입력하세요"/></label>}
         {!signup && <><div className="auth-options">
           <label><input type="checkbox" checked={saveId} onChange={event => { setSaveId(event.target.checked); if (!event.target.checked) preference('jeago:remember-id', null); }}/>ID 저장</label>
           <label><input type="checkbox" checked={savePassword} onChange={event => { setSavePassword(event.target.checked); preference('jeago:password-manager', event.target.checked ? '1' : null); }}/>PW 저장</label>
           <label><input type="checkbox" checked={auto} onChange={event => setAuto(event.target.checked)}/>자동로그인</label>
-        </div><p className="auth-help">PW 저장은 브라우저의 비밀번호 관리자를 사용합니다.<br/>자동로그인은 이 기기·브라우저에서 30일간 유지됩니다.</p></>}
+        </div><p className="auth-help">PW 저장은 브라우저의 비밀번호 관리자를 사용합니다.<br/>자동로그인은 이 기기에서 사용하는 동안 계속 유지됩니다.</p></>}
         {signup && <p className="auth-help">모든 회원이 같은 재고와 입출고 이력을 사용합니다.</p>}
         <button type="submit" className="auth-submit">{pending ? '처리 중…' : signup ? '회원가입' : '로그인'}<span aria-hidden="true">→</span></button>
       </fieldset>{error && <p role="alert" className="auth-error">{error}</p>}</form>

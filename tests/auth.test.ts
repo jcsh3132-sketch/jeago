@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { register, authenticate, createSession, sessionUser, revokeSession, limitAuth, updateAccount, accountProfile, AuthError, REMEMBER_SECONDS, SESSION_SECONDS } from '../src/lib/auth';
+import { register, authenticate, createSession, sessionUser, revokeSession, limitAuth, updateAccount, accountProfile, renewRememberedSession, AuthError, SESSION_SECONDS } from '../src/lib/auth';
 import { getDb } from '../src/lib/db';
 mkdirSync('work', { recursive: true });
 process.env.JEAGO_TEST_MODE = '1';
@@ -16,7 +16,7 @@ test('accounts use salted hashes, normalize IDs and validate registration', asyn
   assert.equal(user.username, 'test.member');
   await assert.rejects(register({ ...fields, username: 'test.member' }), error => error instanceof AuthError && error.status === 409);
   await assert.rejects(register({ ...fields, username: 'another', password_confirm: 'different' }), /일치/);
-  await assert.rejects(register({ ...fields, username: 'another', password: 'short' }), /10~128/);
+  await assert.rejects(register({ ...fields, username: 'another', password: '123' }), /4~128/);
   assert.equal((await authenticate({ username: 'TEST.MEMBER', password: fields.password })).id, user.id);
   await assert.rejects(authenticate({ username: user.username, password: 'wrong-password' }), /올바르지/);
   await assert.rejects(authenticate({ username: 'missing', password: fields.password }), /올바르지/);
@@ -34,7 +34,7 @@ test('device sessions expire independently; logout revokes only that device', as
   assert.notEqual(pc, mobile);
   assert.equal((await sessionUser(pc, now))!.id, user.id);
   assert.equal(await sessionUser(temporary, now + SESSION_SECONDS * 1000), null);
-  assert.equal(await sessionUser(pc, now + REMEMBER_SECONDS * 1000), null);
+  assert.equal((await sessionUser(pc, now + 500 * 86400000))!.id, user.id);
   assert.equal(await sessionUser('f'.repeat(64), now), null);
   const stored = (await (await getDb()).execute('SELECT token_hash FROM auth_session')).rows;
   assert(stored.every(row => row.token_hash !== pc && row.token_hash !== mobile));
@@ -82,7 +82,7 @@ test('password updates validate confirmation, revoke all owner sessions, and lea
   const fields = { current_password: password, new_password: next, password_confirm: next };
   await assert.rejects(updateAccount(pc, 'password', { ...fields, current_password: 'wrong-password' }), /현재 비밀번호/);
   await assert.rejects(updateAccount(pc, 'password', { ...fields, password_confirm: 'not-equal' }), /일치/);
-  await assert.rejects(updateAccount(pc, 'password', { ...fields, new_password: 'short' }), /10~128/);
+  await assert.rejects(updateAccount(pc, 'password', { ...fields, new_password: '123' }), /4~128/);
   await assert.rejects(updateAccount(pc, 'password', { ...fields, new_password: password, password_confirm: password }), /다른 새 비밀번호/);
   assert(await sessionUser(mobile));
   const attempts = await Promise.allSettled([updateAccount(pc, 'password', fields), updateAccount(mobile, 'password', fields)]);
@@ -95,4 +95,32 @@ test('password updates validate confirmation, revoke all owner sessions, and lea
   assert.equal((await authenticate({ username: user.username, password: next })).id, user.id);
   const hash = (await (await getDb()).execute({ sql: 'SELECT password_hash FROM app_user WHERE id=?', args: [user.id] })).rows[0].password_hash;
   assert(String(hash).startsWith('scrypt:')); assert(!String(hash).includes(next));
+});
+
+test('four-character passwords work for signup, authentication and password changes', async () => {
+  const user = await register({ username: 'four.chars', display_name: '네글자', password: '1234', password_confirm: '1234' });
+  assert.equal((await authenticate({ username: user.username, password: '1234' })).id, user.id);
+  const token = await createSession(user.id, true);
+  await updateAccount(token, 'password', { current_password: '1234', new_password: '5678', password_confirm: '5678' });
+  assert.equal((await authenticate({ username: user.username, password: '5678' })).id, user.id);
+  await assert.rejects(authenticate({ username: user.username, password: '1234' }));
+  await assert.rejects(renewRememberedSession(token), error => error instanceof AuthError && error.status === 401);
+});
+
+test('renewal upgrades only live remembered logins and never resurrects expired or revoked sessions', async () => {
+  const user = await register({ username: 'renew.member', display_name: '갱신', password: '1234', password_confirm: '1234' });
+  const now = Date.now();
+  const temporary = await createSession(user.id, false, now);
+  assert.equal(await renewRememberedSession(temporary, now), false);
+  assert.equal(await sessionUser(temporary, now + SESSION_SECONDS * 1000), null);
+  const legacy = await createSession(user.id, false, now);
+  const { createHash } = await import('node:crypto');
+  const key = createHash('sha256').update(legacy).digest('hex');
+  await (await getDb()).execute({ sql: 'UPDATE auth_session SET expires_at=? WHERE token_hash=?', args: [now + 30 * 86400000, key] });
+  assert.equal(await renewRememberedSession(legacy, now + 29 * 86400000), true);
+  assert.equal((await sessionUser(legacy, now + 500 * 86400000))!.id, user.id);
+  await revokeSession(legacy);
+  await assert.rejects(renewRememberedSession(legacy, now), AuthError);
+  await assert.rejects(renewRememberedSession(temporary, now + SESSION_SECONDS * 1000), AuthError);
+  await assert.rejects(renewRememberedSession(undefined, now), AuthError);
 });

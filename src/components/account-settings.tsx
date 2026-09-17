@@ -52,7 +52,7 @@ export function AccountSettings({ profile }: { profile: AccountProfile }) {
             <label className="field field-label">이메일 (선택)<input name="email" type="email" autoComplete="email" defaultValue={saved.email} maxLength={254}/></label>
             <label className="field field-label">연락처 (선택)<input name="phone" type="tel" autoComplete="tel" defaultValue={saved.phone} maxLength={30}/></label>
             <label className="field field-label">부서 (선택)<input name="department" defaultValue={saved.department} maxLength={100}/></label>
-            <label className="field field-label">현재 비밀번호<input name="current_password" type="password" autoComplete="current-password" required minLength={10} maxLength={128}/></label>
+            <label className="field field-label">현재 비밀번호<input name="current_password" type="password" autoComplete="current-password" required minLength={4} maxLength={128}/></label>
           </div><p className="muted">ID는 영문·숫자로 시작하는 3~32자입니다. 변경한 ID로 다음 로그인부터 이용하세요. 이메일은 연락 정보로만 저장됩니다.</p>
           <div className="form-actions"><button type="submit" className="top-btn primary">{pending === 'profile' ? '저장 중…' : '계정 정보 저장'}</button></div>
         </fieldset>{notice('profile')}
@@ -62,9 +62,9 @@ export function AccountSettings({ profile }: { profile: AccountProfile }) {
       <form onSubmit={event => submit(event, 'password')} onChange={() => setDirty(value => ({ ...value, password: true }))} data-dirty={dirty.password} data-pending={pending === 'password'} autoComplete="on">
         <fieldset className="action-fields" disabled={!!pending}>
           <input name="username" autoComplete="username" value={saved.username} readOnly hidden/>
-          <label className="field field-label">현재 비밀번호<input name="current_password" type="password" autoComplete="current-password" required minLength={10} maxLength={128}/></label>
-          <label className="field field-label">새 비밀번호<input name="new_password" type="password" autoComplete="new-password" required minLength={10} maxLength={128} placeholder="10~128자로 입력하세요"/></label>
-          <label className="field field-label">새 비밀번호 확인<input name="password_confirm" type="password" autoComplete="new-password" required minLength={10} maxLength={128}/></label>
+          <label className="field field-label">현재 비밀번호<input name="current_password" type="password" autoComplete="current-password" required minLength={4} maxLength={128}/></label>
+          <label className="field field-label">새 비밀번호<input name="new_password" type="password" autoComplete="new-password" required minLength={4} maxLength={128} placeholder="4~128자로 입력하세요"/></label>
+          <label className="field field-label">새 비밀번호 확인<input name="password_confirm" type="password" autoComplete="new-password" required minLength={4} maxLength={128}/></label>
           <div className="form-actions"><button type="submit" className="top-btn primary">{pending === 'password' ? '변경 중…' : '비밀번호 변경'}</button></div>
         </fieldset>{notice('password')}
       </form>

@@ -5,7 +5,9 @@ export class AuthError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 export const SESSION_SECONDS = 12 * 60 * 60;
-export const REMEMBER_SECONDS = 30 * 24 * 60 * 60;
+// Browser cookies have a finite lifetime; renew them while the app is used.
+export const REMEMBER_SECONDS = 400 * 24 * 60 * 60;
+export const PERSISTENT_SESSION_EXPIRY = Number.MAX_SAFE_INTEGER;
 export const secureCookies = process.env.NODE_ENV === 'production' && process.env.JEAGO_TEST_MODE !== '1';
 export const SESSION_COOKIE = secureCookies ? '__Host-jeago_session' : 'jeago_session';
 export type User = { id: string; username: string; display_name: string };
@@ -27,7 +29,7 @@ export function credentials(fields: Record<string, unknown>) {
   const username = typeof fields.username === 'string' ? fields.username.trim().toLowerCase() : '';
   const password = typeof fields.password === 'string' ? fields.password : '';
   if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) throw new AuthError('ID는 영문·숫자로 시작하는 3~32자의 영문, 숫자, 점, 밑줄, 하이픈으로 입력하세요.');
-  if (password.length < 10 || password.length > 128) throw new AuthError('PW는 10~128자로 입력하세요.');
+  if (password.length < 4 || password.length > 128) throw new AuthError('PW는 4~128자로 입력하세요.');
   return { username, password };
 }
 export async function register(fields: Record<string, unknown>) {
@@ -57,11 +59,11 @@ export async function authenticate(fields: Record<string, unknown>): Promise<Use
 }
 export async function createSession(userId: string, remember: boolean, now = Date.now()) {
   const token = randomBytes(32).toString('hex');
-  const lifetime = remember ? REMEMBER_SECONDS : SESSION_SECONDS;
+  const expiry = remember ? PERSISTENT_SESSION_EXPIRY : now + SESSION_SECONDS * 1000;
   const db = await getDb();
   await db.batch([
     { sql: 'DELETE FROM auth_session WHERE expires_at<=?', args: [now] },
-    { sql: 'INSERT INTO auth_session(token_hash,user_id,expires_at) VALUES (?,?,?)', args: [digest(token), userId, now + lifetime * 1000] },
+    { sql: 'INSERT INTO auth_session(token_hash,user_id,expires_at) VALUES (?,?,?)', args: [digest(token), userId, expiry] },
   ], 'write');
   return token;
 }
@@ -72,6 +74,21 @@ export async function sessionUser(token: string | undefined, now = Date.now()): 
 }
 export async function revokeSession(token: string | undefined) {
   if (token) await (await getDb()).execute({ sql: 'DELETE FROM auth_session WHERE token_hash=?', args: [digest(token)] });
+}
+
+export async function renewRememberedSession(token: string | undefined, now = Date.now()) {
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new AuthError('다시 로그인해주세요.', 401);
+  const db = await getDb();
+  const row = (await db.execute({ sql: 'SELECT expires_at,created_at FROM auth_session WHERE token_hash=? AND expires_at>?', args: [digest(token), now] })).rows[0];
+  if (!row) throw new AuthError('다시 로그인해주세요.', 401);
+  if (Number(row.expires_at) === PERSISTENT_SESSION_EXPIRY) return true;
+  // Upgrade unexpired legacy 30-day sessions, but never turn a 12-hour login
+  // without automatic-login consent into a persistent session.
+  const created = Date.parse(String(row.created_at).replace(' ', 'T') + 'Z');
+  if (!Number.isFinite(created) || Number(row.expires_at) - created <= SESSION_SECONDS * 1000 + 60000) return false;
+  const changed = await db.execute({ sql: 'UPDATE auth_session SET expires_at=? WHERE token_hash=? AND expires_at=? AND expires_at>?', args: [PERSISTENT_SESSION_EXPIRY, digest(token), row.expires_at, now] });
+  if (!changed.rowsAffected) throw new AuthError('로그인 상태가 변경되었습니다. 다시 확인해주세요.', 401);
+  return true;
 }
 
 export async function accountProfile(token: string | undefined): Promise<AccountProfile> {
@@ -86,7 +103,7 @@ export async function updateAccount(token: string | undefined, action: 'profile'
   if (!user) throw new AuthError('로그인이 만료되었습니다. 다시 로그인해주세요.', 401);
   await limitAuth(`account:${user.id}`, 20, 900);
   const current = typeof fields.current_password === 'string' ? fields.current_password : '';
-  if (current.length < 10 || current.length > 128) throw new AuthError('현재 비밀번호를 확인해주세요.');
+  if (current.length < 4 || current.length > 128) throw new AuthError('현재 비밀번호를 확인해주세요.');
   const db = await getDb();
   const oldHash = String((await db.execute({ sql: 'SELECT password_hash FROM app_user WHERE id=?', args: [user.id] })).rows[0]?.password_hash || '');
   if (!await verifyPassword(current, oldHash)) throw new AuthError('현재 비밀번호가 올바르지 않습니다.');

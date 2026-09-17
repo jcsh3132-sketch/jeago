@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthError, authenticate, credentials, createSession, limitAuth, register, revokeSession, updateAccount, REMEMBER_SECONDS, SESSION_COOKIE, secureCookies } from '@/lib/auth';
+import { AuthError, authenticate, credentials, createSession, limitAuth, register, revokeSession, renewRememberedSession, updateAccount, REMEMBER_SECONDS, SESSION_COOKIE, secureCookies } from '@/lib/auth';
 export const runtime = 'nodejs';
 export async function POST(request: NextRequest, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
-  if (!['login', 'signup', 'logout', 'profile', 'password'].includes(action)) return NextResponse.json({ message: '지원하지 않는 요청입니다.' }, { status: 404 });
+  if (!['login', 'signup', 'logout', 'profile', 'password', 'renew'].includes(action)) return NextResponse.json({ message: '지원하지 않는 요청입니다.' }, { status: 404 });
   const origin = request.headers.get('origin');
   try { if (!origin || new URL(origin).host !== (request.headers.get('x-forwarded-host') || request.headers.get('host'))) throw new Error(); }
   catch { return NextResponse.json({ message: '허용하지 않는 요청 출처입니다.' }, { status: 403 }); }
   const options = { httpOnly: true, secure: secureCookies, sameSite: 'lax' as const, path: '/' };
   try {
+    if (action === 'renew') {
+      const token = request.cookies.get(SESSION_COOKIE)?.value;
+      const remembered = await renewRememberedSession(token);
+      const response = NextResponse.json({ ok: true, remembered }, { headers: { 'Cache-Control': 'no-store' } });
+      if (remembered) response.cookies.set(SESSION_COOKIE, token!, { ...options, maxAge: REMEMBER_SECONDS });
+      return response;
+    }
     if (action === 'logout') {
       await revokeSession(request.cookies.get(SESSION_COOKIE)?.value);
       const response = NextResponse.json({ ok: true });

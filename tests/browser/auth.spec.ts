@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
 test('signup, device preferences, persistent login, logout and private inventory access', async ({ page, browser, request }) => {
-  const id = `member-${randomUUID().slice(0, 8)}`, password = 'my-device-password-2026';
+  const id = `member-${randomUUID().slice(0, 8)}`, password = '1234';
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '로그인', exact: true })).toBeVisible();
   await expect(page.locator('.inventory-table')).toHaveCount(0);
@@ -33,7 +33,10 @@ test('signup, device preferences, persistent login, logout and private inventory
   await expect(page.getByRole('heading', { name: '재고 현황', exact: true })).toBeVisible();
   const cookie = (await page.context().cookies()).find(c => c.name === 'jeago_session')!;
   expect(cookie.httpOnly).toBe(true); expect(cookie.sameSite).toBe('Lax');
-  expect(cookie.expires).toBeGreaterThan(Date.now() / 1000 + 29 * 86400);
+  expect(cookie.expires).toBeGreaterThan(Date.now() / 1000 + 399 * 86400);
+  const renewed = await page.request.post('/api/auth/renew', { headers: { Origin: 'http://127.0.0.1:3100' } });
+  expect(renewed.ok()).toBe(true);
+  expect(renewed.headers()['set-cookie']).toContain('Max-Age=34560000');
   expect(await page.evaluate(() => document.cookie)).not.toContain('jeago_session');
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage }));
   expect(storage).toContain(id); expect(storage).not.toContain(password);
@@ -60,6 +63,9 @@ test('signup, device preferences, persistent login, logout and private inventory
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '재고 현황', exact: true })).toBeVisible();
   expect((await page.context().cookies()).find(c => c.name === 'jeago_session')!.expires).toBe(-1);
+  const temporaryRenewal = await page.request.post('/api/auth/renew', { headers: { Origin: 'http://127.0.0.1:3100' } });
+  expect((await temporaryRenewal.json()).remembered).toBe(false);
+  expect(temporaryRenewal.headers()['set-cookie']).toBeUndefined();
   await reopened.close(); await otherDevice.close();
   expect((await request.post('/api/auth/login', { headers: { Origin: 'https://example.com' }, data: { username: id, password } })).status()).toBe(403);
 });

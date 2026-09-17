@@ -7,7 +7,7 @@ test('account edits, current password verification, operator name, and all-devic
   await expect(page).toHaveURL('http://127.0.0.1:3100/');
   expect((await request.post('/api/auth/profile', { headers, data: {} })).status()).toBe(401);
   const account = await loginForTest(page.request);
-  const username = `${account.username}-new`, password = 'changed-password-2026';
+  const username = `${account.username}-new`, password = '5678';
   await request.post('/api/auth/login', { headers, data: account });
   await page.goto('/');
   await page.getByRole('link', { name: '내 계정', exact: true }).click();
