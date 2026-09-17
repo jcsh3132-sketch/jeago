@@ -12,7 +12,7 @@ test('legacy data renders, forms work, and desktop/mobile routes are usable', as
   const first = database.prepare('SELECT * FROM item ORDER BY name,id LIMIT 1').get()!;
   database.close();
   expect((await request.get('/health')).status()).toBe(200);
-  await page.goto('/');
+  await page.goto('/?stock=all');
   await expect(page.locator('.inventory-table tbody tr')).toHaveCount(count);
   await expect(page.getByRole('heading', { name: '재고 현황' })).toBeVisible();
   await page.screenshot({ path: 'work/nextjs-desktop.png', fullPage: false });

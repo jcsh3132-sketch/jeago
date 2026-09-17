@@ -34,6 +34,7 @@ test('account edits, current password verification, operator name, and all-devic
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await page.screenshot({ path: 'work/account-mobile.png', fullPage: true });
   await page.goto('/');
+  await page.getByRole('link', { name: /등록 모델/ }).click();
   await page.locator('.inventory-table').getByRole('link', { name: '입고', exact: true }).first().click();
   await expect(page.getByLabel('담당자', { exact: true })).toHaveValue('수정 담당자');
   await page.goto('/account');
@@ -80,4 +81,29 @@ test('mobile category picker stays compact, bounds expanded trees, and closes af
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(toggle).not.toBeVisible();
   await expect(page.locator('#inventory-categories')).toBeVisible();
+});
+
+test('top inventory title reloads the first page and clears navigation/search state', async ({ page }) => {
+  await loginForTest(page.request);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/add');
+  await page.evaluate(() => { (window as unknown as { homeReloadMarker?: string }).homeReloadMarker = 'before'; });
+  await page.locator('.topbar .home-refresh').click();
+  await expect(page).toHaveURL('http://127.0.0.1:3100/');
+  expect(await page.evaluate(() => (window as unknown as { homeReloadMarker?: string }).homeReloadMarker)).toBeUndefined();
+  await page.getByRole('textbox', { name: '재고 검색' }).fill('임시 검색');
+  await page.locator('.topbar .home-refresh').click();
+  await expect(page.getByRole('textbox', { name: '재고 검색' })).toHaveValue('');
+  await expect(page.locator('.inventory-table')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '조회할 재고를 선택하세요.' })).toBeVisible();
+  await page.getByRole('link', { name: /등록 모델/ }).click();
+  await expect(page.locator('.inventory-table')).toBeVisible();
+  await page.locator('.topbar .home-refresh').click();
+  await expect(page.locator('.inventory-table')).toHaveCount(0);
+  await page.getByRole('textbox', { name: '재고 검색' }).fill('존재하지않는검색항목');
+  await expect(page.getByRole('heading', { name: '조건에 해당하는 모델이 없습니다.' })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/transactions');
+  await page.locator('.brand-home').click();
+  await expect(page).toHaveURL('http://127.0.0.1:3100/');
 });
