@@ -83,8 +83,9 @@ test('mobile category picker stays compact, bounds expanded trees, and closes af
   await page.locator('#inventory-categories details').evaluateAll(nodes => nodes.forEach(node => (node as HTMLDetailsElement).open = true));
   const bounds = await page.locator('#inventory-categories').evaluate(node => ({ height: node.clientHeight, scroll: node.scrollHeight }));
   expect(bounds.height).toBeLessThanOrEqual(360); expect(bounds.scroll).toBeGreaterThan(bounds.height);
-  await firstBranch.locator(':scope > .next-tree-children > .category-mobile-view').click();
-  await expect(page).toHaveURL(/main=/);
+  await expect(page.getByText('이 카테고리 재고 보기', { exact: true })).toHaveCount(0);
+  await page.locator('#inventory-categories .tree-item-link').first().click();
+  await expect(page).toHaveURL(/item=/);
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#inventory-categories')).not.toBeVisible();
   await page.setViewportSize({ width: 320, height: 740 });
