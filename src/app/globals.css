@@ -490,3 +490,9 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
   .next-tree summary{min-height:44px;cursor:pointer}
   .next-tree summary .category-mobile-label.selected{color:var(--blue)}
 }
+.batch-outbound{max-width:900px;margin:auto;padding:22px}
+.batch-model-list{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:18px}
+.batch-model{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+.batch-model>input{width:20px;height:20px;flex-shrink:0}.batch-model span{min-width:0;overflow-wrap:anywhere}.batch-model small{display:block;color:var(--muted);margin-top:4px}
+.batch-selection{display:flex;gap:12px;align-items:center}.batch-selection .field{flex:1;min-width:0}.batch-outbound input{font-size:16px}
+.inventory-list-head{flex-wrap:wrap}

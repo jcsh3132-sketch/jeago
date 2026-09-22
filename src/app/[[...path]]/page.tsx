@@ -1,3 +1,4 @@
+import { BatchOutbound } from '@/components/batch-outbound';
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth-request';
 import type { User } from '@/lib/auth';
@@ -26,7 +27,7 @@ async function InventoryPage({ params, searchParams, user }: Props & { user: Use
   const query: Record<string, string> = {};
   for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') query[k] = v;
   const section = path[0] || '';
-  if (path.length > 2 || !['', 'add', 'categories', 'partners', 'transactions', 'edit', 'inbound', 'outbound', 'history', 'trash'].includes(section)) notFound();
+  if (path.length > 2 || !['', 'add', 'categories', 'partners', 'transactions', 'edit', 'inbound', 'outbound', 'history', 'trash', 'batch-outbound'].includes(section)) notFound();
   const itemRoute = ['edit', 'inbound', 'outbound', 'history'].includes(section);
   if (itemRoute ? path.length !== 2 || !/^\d+$/.test(path[1]) : path.length > 1) notFound();
   if (section === 'trash') return <Trash/>;
@@ -38,6 +39,7 @@ async function InventoryPage({ params, searchParams, user }: Props & { user: Use
     if (section === 'history') return <History data={data} item={item} query={query}/>;
     return <StockEditor key={`${section}-${item.id}`} data={data} item={item} outbound={section === 'outbound'} user={user}/>;
   }
+  if (section === 'batch-outbound') return <BatchOutbound data={data} user={user}/>;
   if (section === 'add') return <ItemEditor data={data} selected={query.category} user={user}/>;
   if (section === 'categories') return <Categories data={data}/>;
   if (section === 'partners') return <Partners data={data} query={query}/>;

@@ -8,7 +8,7 @@ import { MANAGERS, type Category, type Item, type Partner, type StockTransaction
 
 export class InputError extends Error {}
 export class ConflictError extends InputError {}
-export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore', 'trash.purge', 'trash.empty'];
+export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'stock.out.batch', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore', 'trash.purge', 'trash.empty'];
 type Fields = Record<string, unknown>;
 function text(f: Fields, key: string, max = 120, required = true): string {
   const v = f[key];
@@ -197,6 +197,30 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
     } else if (action === 'item.category') {
       const id = integer(f.id), category = text(f, 'category'); checkVersion(f, await item(tx, id)); await leaf(tx, category);
       await tx.execute({ sql: 'UPDATE item SET category=?,version=version+1 WHERE id=?', args: [category, id] });
+    } else if (action === 'stock.out.batch') {
+      let lines: unknown;
+      try { lines = JSON.parse(text(f, 'lines', 20000)); } catch { throw new InputError('출고할 모델을 선택해주세요.'); }
+      if (!Array.isArray(lines) || !lines.length || lines.length > 100) throw new InputError('출고 모델은 1~100개를 선택해주세요.');
+      const seen = new Set<number>();
+      const selected: { current: Item; quantity: number }[] = [];
+      for (const row of lines) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) throw new InputError('출고 항목을 확인해주세요.');
+        const id = integer(row.id), quantity = integer(row.quantity);
+        if (seen.has(id)) throw new InputError('같은 모델을 중복 선택할 수 없습니다.');
+        seen.add(id);
+        const current = await item(tx, id);
+        if (row.expected_version === undefined) throw new ConflictError('최신 재고를 다시 불러와주세요.');
+        checkVersion(row, current);
+        if (quantity > current.quantity) throw new InputError(`${current.name}: 재고가 부족합니다. 전체 출고가 취소되었습니다.`);
+        selected.push({ current, quantity });
+      }
+      const owner = actor ? actor.display_name : manager(f);
+      const customer = await ensurePartner(tx, cleanPartnerName(text(f, 'customer_name')));
+      for (const { current, quantity } of selected) {
+        await tx.execute({ sql: 'UPDATE item SET quantity=quantity-?,version=version+1 WHERE id=?', args: [quantity, current.id] });
+        await tx.execute({ sql: 'INSERT INTO "transaction"(item_id,quantity,transaction_type,manager,customer_name,date) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)', args: [current.id, quantity, '출고', owner, customer] });
+      }
+      redirect = '/transactions';
     } else if (action === 'stock.in' || action === 'stock.out') {
       const id = integer(f.id), qty = integer(f.quantity), owner = actor ? actor.display_name : manager(f), current = await item(tx, id);
       checkVersion(f, current);

@@ -1,0 +1,42 @@
+import { after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { getDb } from '../src/lib/db';
+import { loadInventory, mutate } from '../src/lib/inventory';
+mkdirSync('work', { recursive: true });
+process.env.JEAGO_TEST_MODE = '1';
+process.env.JEAGO_TEST_DATABASE_URL = pathToFileURL(join(mkdtempSync(join(resolve('work'), 'batch-test-')), 'test.db')).href;
+after(async () => (await getDb()).close());
+test('batch outbound is atomic, versioned, idempotent and records the logged-in owner', async () => {
+  const manager = '김채희';
+  const root = (await loadInventory()).categories[0];
+  await mutate({ action: 'category.add', level: 1, parent_id: root.id, name: '테스트프린터' });
+  const device = (await loadInventory()).categories.find(c => c.display_name === '테스트프린터')!;
+  await mutate({ action: 'category.add', level: 2, parent_id: device.id, name: '토너' });
+  const category = (await loadInventory()).categories.find(c => c.display_name === '토너')!.name;
+  for (const name of ['검정', '파랑']) await mutate({ action: 'item.add', name, category, manager });
+  const items = (await loadInventory()).items;
+  for (const item of items) await mutate({ action: 'stock.in', id: item.id, quantity: 2, manager });
+  const lines = items.map(i => ({ id: i.id, quantity: 1, expected_version: 1 }));
+  const fields = { action: 'stock.out.batch', lines: JSON.stringify(lines), manager, customer_name: '묶음거래처', request_id: randomUUID() };
+  for (const bad of [[], [lines[0], lines[0]], [lines[0], { ...lines[1], quantity: 3 }], [lines[0], { ...lines[1], expected_version: 0 }], [lines[0], { id: lines[1].id, quantity: 1 }]]) {
+    await assert.rejects(mutate({ ...fields, lines: JSON.stringify(bad) }));
+    assert.deepEqual((await loadInventory()).items.map(i => i.quantity), [2, 2]);
+  }
+  assert.equal((await loadInventory()).partners.length, 0);
+  const actor = { id: 'test-user', username: 'tester', display_name: '로그인담당자' };
+  const first = await mutate(fields, actor);
+  assert.deepEqual(await mutate(fields, actor), first);
+  const data = await loadInventory();
+  assert.deepEqual(data.items.map(i => i.quantity), [1, 1]);
+  const outgoing = data.transactions.filter(t => t.transaction_type === '출고');
+  assert.equal(outgoing.length, 2);
+  assert(outgoing.every(t => t.manager === actor.display_name && t.customer_name === '묶음거래처'));
+  const next = { ...fields, lines: JSON.stringify(lines.map(l => ({ ...l, expected_version: 2 }))) };
+  const results = await Promise.allSettled([mutate({ ...next, request_id: randomUUID() }, actor), mutate({ ...next, request_id: randomUUID() }, actor)]);
+  assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+  assert.deepEqual((await loadInventory()).items.map(i => i.quantity), [0, 0]);
+});
