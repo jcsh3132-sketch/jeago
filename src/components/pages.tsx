@@ -1,3 +1,4 @@
+import { koreaTime } from '@/lib/korea-time';
 import Link from 'next/link';
 import type { User } from '@/lib/auth';
 import { ActionForm, CategorySelect, DeleteButton, Field, Hidden } from './forms';
@@ -20,7 +21,7 @@ export function StockEditor({ data, item, outbound, user }: { data: InventoryDat
       <div className="form-actions"><Link href="/" className="top-btn ghost">취소</Link><button type="submit" disabled={outbound && item.quantity === 0} className={`top-btn ${outbound ? 'danger-btn' : 'success'}`}>{outbound ? '출고 처리' : '입고 처리'}</button></div>
     </ActionForm></section></div>;
 }
-function dateString(s: string) { return s?.replace('T', ' ').slice(0, 16) || '-'; }
+
 export function History({ data, item, query }: { data: InventoryData; item?: Item; query: Record<string, string> }) {
   const q = (query.q || '').trim().toLowerCase();
   const type = ['입고', '출고'].includes(query.type) ? query.type : 'all';
@@ -32,8 +33,8 @@ export function History({ data, item, query }: { data: InventoryData; item?: Ite
     let balance = item.quantity - txs.reduce((s, t) => s + (t.transaction_type === '입고' ? t.quantity : -t.quantity), 0);
     rows = txs.map(t => { balance += t.transaction_type === '입고' ? t.quantity : -t.quantity; return { ...t, remaining: balance }; }).reverse();
   } else rows = data.transactions.filter(t => (type === 'all' || t.transaction_type === type) && `${itemMap.get(t.item_id)?.name || ''} ${t.manager} ${t.customer_name || ''}`.toLowerCase().includes(q)).reverse();
-  return <section className="data-card history-card"><div className="section-head"><div><span className="section-kicker">TRANSACTION HISTORY</span><h2>{item?.name || '전체 입출고 내역'}</h2><p>{rows.length}건 · 처리일시는 기존 DB와 같은 UTC 기준입니다.</p></div>{item ? <Link href="/" className="top-btn ghost">목록으로</Link> : <form method="get" className="history-filters"><input name="q" aria-label="입출고 검색" placeholder="모델 · 담당자 · 출고업체" defaultValue={query.q}/><select name="type" aria-label="입출고 유형" defaultValue={type}><option value="all">전체 유형</option><option>입고</option><option>출고</option></select><button className="top-btn ghost">검색</button></form>}</div>
-    {rows.length ? <div className="table-wrap"><table className="history-table"><thead><tr>{['처리일시', ...(item ? [] : ['모델명']), '유형', '수량', '출고업체', '담당자', ...(item ? ['처리 후 재고'] : [])].map(t => <th key={t}>{t}</th>)}</tr></thead><tbody>{rows.map(t => <tr key={t.id}><td data-label="처리일시">{dateString(t.date)}</td>{!item && <td data-label="모델명"><Link href={`/history/${t.item_id}`}>{itemMap.get(t.item_id)?.name || `#${t.item_id}`}</Link></td>}<td data-label="유형"><span className={`stock-badge ${t.transaction_type === '입고' ? 'good' : 'out'}`}>{t.transaction_type}</span></td><td data-label="수량"><strong>{t.quantity}</strong></td><td data-label="출고업체">{t.customer_name || '-'}</td><td data-label="담당자">{t.manager}</td>{item && <td data-label="처리 후 재고"><strong>{t.remaining}</strong></td>}</tr>)}</tbody></table></div> : <div className="empty-state"><h3>입출고 내역이 없습니다.</h3></div>}
+  return <section className="data-card history-card"><div className="section-head"><div><span className="section-kicker">TRANSACTION HISTORY</span><h2>{item?.name || '전체 입출고 내역'}</h2><p>{rows.length}건 · 처리일시는 한국시간(KST) 기준입니다.</p></div>{item ? <Link href="/" className="top-btn ghost">목록으로</Link> : <form method="get" className="history-filters"><input name="q" aria-label="입출고 검색" placeholder="모델 · 담당자 · 출고업체" defaultValue={query.q}/><select name="type" aria-label="입출고 유형" defaultValue={type}><option value="all">전체 유형</option><option>입고</option><option>출고</option></select><button className="top-btn ghost">검색</button></form>}</div>
+    {rows.length ? <div className="table-wrap"><table className="history-table"><thead><tr>{['처리일시', ...(item ? [] : ['모델명']), '유형', '수량', '출고업체', '담당자', ...(item ? ['처리 후 재고'] : [])].map(t => <th key={t}>{t}</th>)}</tr></thead><tbody>{rows.map(t => <tr key={t.id}><td data-label="처리일시">{koreaTime(t.date)}</td>{!item && <td data-label="모델명"><Link href={`/history/${t.item_id}`}>{itemMap.get(t.item_id)?.name || `#${t.item_id}`}</Link></td>}<td data-label="유형"><span className={`stock-badge ${t.transaction_type === '입고' ? 'good' : 'out'}`}>{t.transaction_type}</span></td><td data-label="수량"><strong>{t.quantity}</strong></td><td data-label="출고업체">{t.customer_name || '-'}</td><td data-label="담당자">{t.manager}</td>{item && <td data-label="처리 후 재고"><strong>{t.remaining}</strong></td>}</tr>)}</tbody></table></div> : <div className="empty-state"><h3>입출고 내역이 없습니다.</h3></div>}
   </section>;
 }
 export function Partners({ data, query }: { data: InventoryData; query: Record<string, string> }) {

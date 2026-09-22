@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { koreaTime } from '@/lib/korea-time';
 import { useState, type FormEvent } from 'react';
 import type { ManagedMember } from '@/lib/admin';
 
@@ -37,7 +38,7 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
   {message && <p role={error ? 'alert' : 'status'} className={`form-status ${error ? 'error' : ''}`}>{message}</p>}
   <button type="button" className="top-btn ghost" disabled={pending} onClick={() => { setMessage(''); refresh().catch(failure => { setError(true); setMessage(failure.message); }); }}>최신 회원 정보 불러오기</button>
   {member && !member.is_admin && <div key={`${member.id}-${member.account_version}`} className="member-editor">
-    <section className="form-card"><div className="form-heading"><h2>회원 정보 수정</h2><p>{member.username} · 가입일 {member.created_at.slice(0, 10)}</p></div>
+    <section className="form-card"><div className="form-heading"><h2>회원 정보 수정</h2><p>{member.username} · 가입일 {koreaTime(member.created_at, true)}</p></div>
       <form onSubmit={event => submit(event, 'admin-profile')} data-pending={pending} onChange={event => { event.currentTarget.dataset.dirty = 'true'; }}><fieldset disabled={pending} className="action-fields"><div className="account-fields">
         <label className="field field-label">회원 ID<input name="username" defaultValue={member.username} required minLength={3} maxLength={32} autoCapitalize="none" autoComplete="off"/></label>
         <label className="field field-label">이름<input name="display_name" defaultValue={member.display_name} required maxLength={50}/></label>
