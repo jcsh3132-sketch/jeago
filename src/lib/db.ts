@@ -59,6 +59,9 @@ async function initialize() {
         'CREATE INDEX IF NOT EXISTS idx_category_trash ON category(trash_group)',
         'CREATE INDEX IF NOT EXISTS idx_partner_trash ON partner(trash_group)',
       ]);
+      const leaveColumns = new Set((await upgrade.execute('PRAGMA table_info(leave_employee)')).rows.map(c => c.name));
+      if (!leaveColumns.has('user_id')) await upgrade.execute('ALTER TABLE leave_employee ADD COLUMN user_id TEXT REFERENCES app_user(id)');
+      await upgrade.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_employee_user ON leave_employee(user_id) WHERE user_id IS NOT NULL');
       for (const table of ['item', 'category', 'partner']) await upgrade.execute({ sql: `INSERT INTO inventory_sequence(name,value) VALUES (?,(SELECT COALESCE(MAX(id),0) FROM ${table})) ON CONFLICT(name) DO UPDATE SET value=MAX(value,excluded.value)`, args: [table] });
       await importHistoricalPartners(upgrade);
       await upgrade.commit();

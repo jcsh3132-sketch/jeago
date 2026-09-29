@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth-request';
 import { SESSION_COOKIE } from '@/lib/auth';
@@ -10,5 +11,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export default async function LeavePage() {
   const user = await currentUser(); if (!user) redirect('/');
-  return <Shell username={user.display_name}><LeaveManager initial={await leaveEmployees((await cookies()).get(SESSION_COOKIE)?.value)} today={todayKorea()}/></Shell>;
+  const employees = await leaveEmployees((await cookies()).get(SESSION_COOKIE)?.value);
+  const initial = employees.length ? employees : [{ id: randomUUID(), name: user.display_name, position: '', hired: '', special: 0, entries: [], version: 0 }];
+  return <Shell username={user.display_name}><LeaveManager initial={initial} today={todayKorea()} username={user.username} displayName={user.display_name}/></Shell>;
 }

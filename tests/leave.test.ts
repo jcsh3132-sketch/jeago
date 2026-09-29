@@ -23,7 +23,7 @@ test('leave calculation matches supplied workbook cached examples and date bound
   assert.throws(() => calculateLeave('2025-02-01','2025-01-01',0,0));
   assert.equal(weekdays('2026-09-18','2026-09-21'),2);
 });
-test('all authenticated members share leave editing with stale-write and replay protection', async () => {
+test('leave ownership prevents cross-account reads, edits and impersonation', async () => {
   const a=await register({username:'leave.a',display_name:'A',password:'1234',password_confirm:'1234'});
   const b=await register({username:'leave.b',display_name:'B',password:'1234',password_confirm:'1234'});
   const token=await createSession(a.id,true), other=await createSession(b.id,true);
@@ -31,9 +31,17 @@ test('all authenticated members share leave editing with stale-write and replay 
   const request={employee,request_id:randomUUID()};
   await assert.rejects(saveLeave(undefined,request)); await assert.rejects(leaveEmployees(undefined));
   await saveLeave(token,request); await saveLeave(token,request);
-  assert.equal((await leaveEmployees(other))[0].version,1);
-  await assert.rejects(saveLeave(other,{...request,request_id:randomUUID()}),/다른 회원/);
-  await saveLeave(other,{employee:{...employee,name:'수정',version:1},request_id:randomUUID()});
-  assert.equal((await leaveEmployees(token))[0].name,'수정');
+  assert.equal((await leaveEmployees(token))[0].version,1);
+  assert.deepEqual(await leaveEmployees(other),[]);
+  await assert.rejects(saveLeave(other,{...request,request_id:randomUUID()}),/본인/);
+  await assert.rejects(saveLeave(token,{...request,request_id:randomUUID()}),/다른 회원/);
+  await saveLeave(token,{employee:{...employee,name:'수정',version:1},request_id:randomUUID()});
+  assert.equal((await leaveEmployees(token))[0].name,'A');
+  await assert.rejects(saveLeave(token,{employee:{...employee,id:randomUUID()},request_id:randomUUID()}),/이미 본인/);
+  const unlinked={...employee,id:randomUUID()};
+  await (await getDb()).execute({sql:'INSERT INTO leave_employee(id,name,position,hired,special,entries) VALUES (?,?,?,?,?,?)',args:[unlinked.id,'B','사원','2025-01-01',0,'[]']});
+  await assert.rejects(saveLeave(other,{employee:unlinked,request_id:randomUUID()}),/본인/);
+  await (await getDb()).execute({sql:'INSERT INTO app_admin(singleton,user_id) VALUES(1,?)',args:[b.id]});
+  await assert.rejects(saveLeave(other,{employee:{...employee,version:2},request_id:randomUUID()}),/본인/);
   await assert.rejects(saveLeave(token,{employee:{...employee,version:2,entries:[{...employee.entries[0],days:-1}]},request_id:randomUUID()}));
 });
