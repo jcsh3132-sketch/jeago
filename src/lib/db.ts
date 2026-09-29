@@ -50,6 +50,7 @@ async function initialize() {
         'CREATE TABLE IF NOT EXISTS leave_employee (id TEXT PRIMARY KEY,name TEXT NOT NULL,position TEXT NOT NULL,hired TEXT NOT NULL,special REAL NOT NULL DEFAULT 0,entries TEXT NOT NULL DEFAULT \'[]\',version INTEGER NOT NULL DEFAULT 0,updated_by TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS leave_request (id TEXT PRIMARY KEY,payload TEXT NOT NULL,employee_id TEXT NOT NULL,actor_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS app_admin (singleton INTEGER PRIMARY KEY CHECK(singleton=1),user_id TEXT NOT NULL UNIQUE REFERENCES app_user(id))',
+        'CREATE TABLE IF NOT EXISTS leave_admin (user_id TEXT PRIMARY KEY REFERENCES app_user(id))',
         'CREATE TABLE IF NOT EXISTS admin_audit (id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,target_id TEXT NOT NULL,action TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS inventory_sequence (name TEXT PRIMARY KEY,value INTEGER NOT NULL)',
         'CREATE TABLE IF NOT EXISTS inventory_migration (name TEXT PRIMARY KEY)',

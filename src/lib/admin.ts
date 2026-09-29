@@ -16,7 +16,7 @@ export async function listMembers(token: string | undefined): Promise<ManagedMem
   await requireAdministrator(token);
   return (await (await getDb()).execute('SELECT u.id,u.username,u.display_name,u.email,u.phone,u.department,u.created_at,u.account_version,EXISTS(SELECT 1 FROM app_admin a WHERE a.user_id=u.id) AS is_admin FROM app_user u ORDER BY u.created_at,u.id')).rows as unknown as ManagedMember[];
 }
-export async function editMember(token: string | undefined, action: 'admin-profile' | 'admin-password' | 'admin-transfer', fields: Record<string, unknown>) {
+export async function editMember(token: string | undefined, action: 'admin-profile' | 'admin-password' | 'admin-transfer' | 'admin-delete', fields: Record<string, unknown>) {
   const admin = await requireAdministrator(token);
   await limitAuth(`admin-edit:${admin.id}`, 20, 900);
   const password = typeof fields.admin_password === 'string' ? fields.admin_password : '';
@@ -52,7 +52,13 @@ export async function editMember(token: string | undefined, action: 'admin-profi
     const row = (await tx.execute({ sql: 'SELECT account_version,username FROM app_user WHERE id=?', args: [target] })).rows[0];
     if (!row) throw new AuthError('회원을 찾을 수 없습니다.', 404);
     if (Number(row.account_version) !== version) throw new AuthError('회원 정보가 변경되었습니다. 최신 정보를 불러온 뒤 다시 수정해주세요.', 409);
-    if (action === 'admin-transfer') {
+    if (action === 'admin-delete') {
+      if (fields.confirm_username !== row.username) throw new AuthError('탈퇴할 회원 ID를 정확히 입력해주세요.');
+      await tx.execute({ sql: 'DELETE FROM auth_session WHERE user_id=?', args: [target] });
+      await tx.execute({ sql: 'DELETE FROM leave_admin WHERE user_id=?', args: [target] });
+      await tx.execute({ sql: 'UPDATE leave_employee SET user_id=NULL,version=version+1 WHERE user_id=?', args: [target] });
+      await tx.execute({ sql: 'DELETE FROM app_user WHERE id=?', args: [target] });
+    } else if (action === 'admin-transfer') {
       if (fields.confirm_username !== row.username) throw new AuthError('위임할 회원 ID를 정확히 입력해주세요.');
       const changed = await tx.execute({ sql: 'UPDATE app_admin SET user_id=? WHERE singleton=1 AND user_id=?', args: [target, admin.id] });
       if (changed.rowsAffected !== 1) throw new AuthError('관리자가 변경되었습니다.', 403);

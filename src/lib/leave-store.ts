@@ -2,12 +2,17 @@ import { createHash } from 'node:crypto';
 import { getDb } from './db';
 import { sessionUser, AuthError } from './auth';
 import { parseDate, type LeaveEmployee } from './leave-calculator';
+import type { Client, Transaction } from '@libsql/client';
 const uuid = /^[a-f0-9-]{36}$/i;
+export async function isLeaveAdministrator(userId: string, db?: Client | Transaction) {
+  return (await (db || await getDb()).execute({ sql: 'SELECT user_id FROM app_admin WHERE singleton=1 AND user_id=? UNION SELECT user_id FROM leave_admin WHERE user_id=?', args: [userId, userId] })).rows.length > 0;
+}
 export async function leaveEmployees(token: string | undefined): Promise<LeaveEmployee[]> {
   const user = await sessionUser(token);
   if (!user) throw new AuthError('로그인이 필요합니다.', 401);
-  const rows = (await (await getDb()).execute({ sql: 'SELECT * FROM leave_employee WHERE user_id=? ORDER BY created_at,id', args: [user.id] })).rows;
-  return rows.map(row => ({ id: String(row.id), name: String(row.name), position: String(row.position), hired: String(row.hired), special: Number(row.special), version: Number(row.version), entries: JSON.parse(String(row.entries)) }));
+  const admin = await isLeaveAdministrator(user.id);
+  const rows = (await (await getDb()).execute({ sql: 'SELECT * FROM leave_employee WHERE user_id=? OR ?=1 ORDER BY CASE WHEN user_id=? THEN 0 ELSE 1 END,created_at,id', args: [user.id, admin ? 1 : 0, user.id] })).rows;
+  return rows.map(row => ({ id: String(row.id), name: String(row.name), position: String(row.position), hired: String(row.hired), special: Number(row.special), version: Number(row.version), entries: JSON.parse(String(row.entries)), is_self: row.user_id === user.id }));
 }
 export async function saveLeave(token: string | undefined, input: Record<string, unknown>) {
   const user = await sessionUser(token);
@@ -30,22 +35,23 @@ export async function saveLeave(token: string | undefined, input: Record<string,
   const payload = createHash('sha256').update(JSON.stringify({ user: user.id, employee: f })).digest('hex');
   const tx = await (await getDb()).transaction('write');
   try {
-    const current = (await tx.execute({ sql: 'SELECT version,user_id,entries FROM leave_employee WHERE id=?', args: [f.id] })).rows[0];
-    if (current && current.user_id !== user.id) throw new AuthError('본인의 연차 내역만 수정할 수 있습니다.', 403);
+    const admin = await isLeaveAdministrator(user.id, tx);
+    const current = (await tx.execute({ sql: 'SELECT version,user_id,entries,name FROM leave_employee WHERE id=?', args: [f.id] })).rows[0];
+    if (current && current.user_id !== user.id && !admin) throw new AuthError('본인의 연차 내역만 수정할 수 있습니다.', 403);
     if (!current && (await tx.execute({ sql: 'SELECT id FROM leave_employee WHERE user_id=?', args: [user.id] })).rows.length) throw new AuthError('이미 본인의 연차 자료가 있습니다. 최신 내역을 불러와주세요.', 409);
     const prior = (await tx.execute({ sql: 'SELECT payload FROM leave_request WHERE id=?', args: [input.request_id] })).rows[0];
     if (prior) { if (prior.payload !== payload) throw new AuthError('저장 요청이 변경되었습니다.', 409); await tx.rollback(); return; }
     if (current ? Number(current.version) !== f.version : f.version !== 0) throw new AuthError('다른 회원이 수정했습니다. 최신 내역을 불러온 뒤 다시 수정해주세요.', 409);
     if (current) {
-      const admin = (await tx.execute({ sql: 'SELECT user_id FROM app_admin WHERE singleton=1 AND user_id=?', args: [user.id] })).rows.length === 1;
       const previous = JSON.parse(String(current.entries)) as LeaveEmployee['entries'];
+      if (current.user_id !== user.id && entries.some(entry => !previous.some(old => old.id === entry.id))) throw new AuthError('다른 직원의 내역은 수정만 가능합니다.', 403);
       for (const old of previous) {
         const next = entries.find(entry => entry.id === old.id);
         if (!next) throw new AuthError('연차 사용 이력은 삭제할 수 없습니다.', 403);
         if (!admin && (next.start !== old.start || next.end !== old.end || next.days !== old.days || next.note !== old.note)) throw new AuthError('기존 사용 이력은 관리자만 수정할 수 있습니다.', 403);
       }
     }
-    if (current) await tx.execute({ sql: 'UPDATE leave_employee SET name=?,position=?,hired=?,special=?,entries=?,version=version+1,updated_by=? WHERE id=?', args: [user.display_name, f.position.trim(), f.hired, f.special, JSON.stringify(entries), user.id, f.id] });
+    if (current) await tx.execute({ sql: 'UPDATE leave_employee SET name=?,position=?,hired=?,special=?,entries=?,version=version+1,updated_by=? WHERE id=?', args: [current.user_id === user.id ? user.display_name : String(current.name), f.position.trim(), f.hired, f.special, JSON.stringify(entries), user.id, f.id] });
     else await tx.execute({ sql: 'INSERT INTO leave_employee(id,name,position,hired,special,entries,version,updated_by,user_id) VALUES (?,?,?,?,?,?,1,?,?)', args: [f.id, user.display_name, f.position.trim(), f.hired, f.special, JSON.stringify(entries), user.id, user.id] });
     await tx.execute({ sql: 'INSERT INTO leave_request(id,payload,employee_id,actor_id) VALUES (?,?,?,?)', args: [input.request_id, payload, f.id, user.id] });
     await tx.commit();

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { loginForTest } from './auth-helper';
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 test('own leave defaults to login and saves or edits entries with one button', async ({ page, request }) => {
   expect((await request.get('/api/leave')).status()).toBe(401);
   const account = await loginForTest(page.request);
@@ -31,4 +35,21 @@ test('own leave defaults to login and saves or edits entries with one button', a
   await page.screenshot({path:'work/leave-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});
   await page.screenshot({path:'work/leave-desktop.png',fullPage:true});
+  await loginForTest(request);
+  const own=(await (await page.request.get('/api/leave')).json()).employees[0];
+  const otherId=randomUUID();
+  expect((await request.post('/api/leave',{headers:{Origin:'http://127.0.0.1:3100'},data:{employee:{...own,id:otherId,version:0},request_id:randomUUID()}})).ok()).toBe(true);
+  const file=readdirSync('work').filter(name=>/^browser-[a-f0-9-]+\.db$/.test(name)).map(name=>join('work',name)).sort((a,b)=>statSync(b).birthtimeMs-statSync(a).birthtimeMs)[0];
+  const fixture=new DatabaseSync(file);
+  try { const user=fixture.prepare('SELECT id FROM app_user WHERE username=?').get(account.username); if(!user)throw new Error('Isolated fixture mismatch');fixture.prepare('INSERT INTO leave_admin(user_id) VALUES (?)').run(String(user.id)); } finally { fixture.close(); }
+  await page.reload();
+  await expect(page.getByLabel('직원 선택')).toHaveValue(own.id);
+  await page.getByLabel('직원 선택').selectOption(otherId);
+  await page.locator('.leave-history-row').getByRole('button',{name:'수정'}).click();
+  await page.getByLabel('사용 일수').fill('1');
+  await page.getByRole('button',{name:'연차 내역 저장'}).click();
+  await expect(page.getByText('연차 내역을 저장했습니다.',{exact:true})).toBeVisible();
+  await expect(page.locator('.leave-history-row')).toContainText('1일');
+  expect((await page.request.get('/api/admin/users')).status()).toBe(403);
+  await expect(page.getByRole('button',{name:'삭제',exact:true})).toHaveCount(0);
 });

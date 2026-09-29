@@ -1,5 +1,5 @@
 export type LeaveEntry = { id: string; start: string; end: string; days: number; note: string };
-export type LeaveEmployee = { id: string; name: string; position: string; hired: string; special: number; entries: LeaveEntry[]; version: number };
+export type LeaveEmployee = { id: string; name: string; position: string; hired: string; special: number; entries: LeaveEntry[]; version: number; is_self?: boolean };
 export function todayKorea() { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date()); }
 export function parseDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('날짜를 선택해주세요.');

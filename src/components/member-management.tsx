@@ -11,13 +11,14 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
   async function refresh() {
     const response = await fetch('/api/admin/users', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error('회원 목록을 다시 불러오지 못했습니다. 관리자 로그인 상태를 확인해주세요.');
-    setMembers((await response.json()).members);
+    const next = (await response.json()).members; setMembers(next); if (!next.some((m: ManagedMember) => m.id === selected)) setSelected(next.find((m: ManagedMember) => !m.is_admin)?.id || '');
   }
-  async function submit(event: FormEvent<HTMLFormElement>, action: 'admin-profile' | 'admin-password' | 'admin-transfer') {
+  async function submit(event: FormEvent<HTMLFormElement>, action: 'admin-profile' | 'admin-password' | 'admin-transfer' | 'admin-delete') {
     event.preventDefault(); if (!member || pending) return;
     const form = event.currentTarget, fields = Object.fromEntries(new FormData(form));
     if (action === 'admin-transfer' && !window.confirm(`${member.display_name} (${member.username}) 회원에게 관리자 권한을 위임합니다. 본인은 즉시 일반 회원으로 변경됩니다. 진행하시겠습니까?`)) return;
     if (action === 'admin-password' && !window.confirm(`${member.username} 회원의 비밀번호를 변경하고 해당 회원의 모든 기기에서 로그아웃합니다. 진행하시겠습니까?`)) return;
+    if (action === 'admin-delete' && !window.confirm(`${member.username} 계정을 삭제하고 모든 기기의 로그인을 종료합니다. 기존 연차·입출고 이력은 보존됩니다. 진행하시겠습니까?`)) return;
     setPending(true); setMessage(''); setError(false);
     try {
       const response = await fetch(`/api/auth/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...fields, target_id: member.id, expected_version: member.account_version }), signal: AbortSignal.timeout(25000) });
@@ -26,7 +27,7 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
       form.reset(); form.dataset.dirty = 'false';
       if (action === 'admin-transfer') { window.alert('관리자 권한을 위임했습니다. 본인은 일반 회원으로 변경되었습니다.'); window.location.replace('/account'); return; }
       await refresh();
-      setMessage(action === 'admin-profile' ? '회원 정보를 저장했습니다.' : '비밀번호를 변경했습니다. 해당 회원은 새 비밀번호로 로그인해야 합니다.');
+      setMessage(action === 'admin-delete' ? '회원 탈퇴 처리가 완료되었습니다.' : action === 'admin-profile' ? '회원 정보를 저장했습니다.' : '비밀번호를 변경했습니다. 해당 회원은 새 비밀번호로 로그인해야 합니다.');
     } catch (failure) {
       setError(true); setMessage(failure instanceof Error && failure.name !== 'TimeoutError' && failure.name !== 'TypeError' ? failure.message : '변경 결과를 확인하지 못했습니다. 최신 정보를 확인해주세요. 비밀번호 변경은 새 비밀번호로 로그인 여부를 확인하세요.');
     } finally { setPending(false); }
@@ -61,6 +62,13 @@ export function MemberManagement({ initial }: { initial: ManagedMember[] }) {
         <label className="field field-label">위임할 회원 ID 확인<input name="confirm_username" required maxLength={32} autoComplete="off" autoCapitalize="none" placeholder={member.username}/></label>
         <label className="field field-label">관리자 비밀번호<input name="admin_password" type="password" autoComplete="off" required minLength={4} maxLength={128}/></label>
         <button className="top-btn primary">관리자 권한 위임</button>
+      </fieldset></form>
+    </section>
+    <section className="form-card"><div className="form-heading"><h2>회원 탈퇴</h2><p>{member.username} 계정과 로그인 정보를 삭제합니다. 기존 연차·입출고 이력은 보존되며 같은 ID로 재가입해도 권한과 자료가 자동 연결되지 않습니다.</p></div>
+      <form onSubmit={event => submit(event, 'admin-delete')} data-pending={pending} onChange={event => { event.currentTarget.dataset.dirty = 'true'; }}><fieldset disabled={pending} className="action-fields">
+        <label className="field field-label">탈퇴할 회원 ID 확인<input name="confirm_username" required maxLength={32} autoComplete="off" placeholder={member.username}/></label>
+        <label className="field field-label">관리자 비밀번호<input name="admin_password" type="password" autoComplete="off" required minLength={4} maxLength={128}/></label>
+        <button className="top-btn danger-btn">회원 탈퇴 처리</button>
       </fieldset></form>
     </section>
   </div>}
