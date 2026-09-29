@@ -44,4 +44,17 @@ test('leave ownership prevents cross-account reads, edits and impersonation', as
   await (await getDb()).execute({sql:'INSERT INTO app_admin(singleton,user_id) VALUES(1,?)',args:[b.id]});
   await assert.rejects(saveLeave(other,{employee:{...employee,version:2},request_id:randomUUID()}),/본인/);
   await assert.rejects(saveLeave(token,{employee:{...employee,version:2,entries:[{...employee.entries[0],days:-1}]},request_id:randomUUID()}));
+  const own = (await leaveEmployees(token))[0];
+  await assert.rejects(saveLeave(token,{employee:{...own,entries:[]},request_id:randomUUID()}),/삭제할 수 없습니다/);
+  await assert.rejects(saveLeave(token,{employee:{...own,entries:[{...own.entries[0],days:1}]},request_id:randomUUID()}),/관리자만/);
+  const appended = {...own,entries:[...own.entries,{...own.entries[0],id:randomUUID(),start:'2026-01-03',end:'2026-01-03'}]};
+  await saveLeave(token,{employee:appended,request_id:randomUUID()});
+  await (await getDb()).execute({sql:'UPDATE app_admin SET user_id=? WHERE singleton=1',args:[a.id]});
+  const adminOwn = (await leaveEmployees(token))[0];
+  await saveLeave(token,{employee:{...adminOwn,entries:adminOwn.entries.map((entry,i)=>i===0?{...entry,days:1}:entry)},request_id:randomUUID()});
+  const edited = (await leaveEmployees(token))[0];
+  assert.equal(edited.entries[0].days,1);
+  await assert.rejects(saveLeave(token,{employee:{...edited,entries:edited.entries.slice(1)},request_id:randomUUID()}),/삭제할 수 없습니다/);
+  await (await getDb()).execute({sql:'UPDATE app_admin SET user_id=? WHERE singleton=1',args:[b.id]});
+  await assert.rejects(saveLeave(token,{employee:{...edited,entries:edited.entries.map(e=>({...e,days:2}))},request_id:randomUUID()}),/관리자만/);
 });

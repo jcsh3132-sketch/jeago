@@ -25,11 +25,8 @@ test('own leave defaults to login and saves or edits entries with one button', a
   await page.getByRole('button',{name:'연차 내역 저장'}).click();
   await expect(page.getByText('연차 내역을 저장했습니다.', { exact: true })).toBeVisible();
   await expect(page.locator('.leave-history-row')).toHaveCount(1);
-  await page.locator('.leave-history-row').getByRole('button',{name:'수정'}).click();
-  await page.getByLabel('사용 일수').fill('1');
-  await page.getByRole('button',{name:'연차 내역 저장'}).click();
-  await expect(page.locator('.leave-history-row')).toHaveCount(1);
-  await expect(page.locator('.leave-history-row')).toContainText('1일');
+  await expect(page.locator('.leave-history-row').getByRole('button',{name:'수정'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'삭제',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
   await page.screenshot({path:'work/leave-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});

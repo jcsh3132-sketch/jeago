@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { calculateLeave, weekdays, type LeaveEmployee, type LeaveEntry } from '@/lib/leave-calculator';
 
-export function LeaveManager({ initial, today, username, displayName }: { initial: LeaveEmployee[]; today: string; username: string; displayName: string }) {
+export function LeaveManager({ initial, today, username, displayName, canEditHistory }: { initial: LeaveEmployee[]; today: string; username: string; displayName: string; canEditHistory: boolean }) {
   const [selected, setSelected] = useState(initial[0]?.id || '');
   const [asOf, setAsOf] = useState(today), [draft, setDraft] = useState<LeaveEmployee | null>(initial[0] || null);
   const [dirty, setDirty] = useState(false), [pending, setPending] = useState(false), [message, setMessage] = useState('');
@@ -58,7 +58,7 @@ export function LeaveManager({ initial, today, username, displayName }: { initia
     <div className="leave-buttons"><button type="button" className="top-btn ghost" onClick={() => { setEnd(start); setDays('0.5'); }}>반차 0.5일</button><button type="button" className="top-btn ghost" onClick={() => { setEnd(start); setDays('1'); }}>하루 1일</button></div>
     <p className="muted">날짜 입력 후 사용 일수 옆 연차 내역 저장을 누르면 등록됩니다. 기간 선택 시 토·일요일을 제외한 일수를 제안합니다. 공휴일이나 회사 휴무일은 사용 일수에서 조정해주세요.</p>
     <label className="field field-label">메모<input value={note} maxLength={300} onChange={e => setNote(e.target.value)} placeholder="필요한 내용만 입력"/></label><div className="leave-buttons">{(editing || start || end || note) && <button type="button" className="top-btn ghost" onClick={resetEntry}>입력 취소</button>}</div>
-    <h2>사용 내역 {draft.entries.length}건</h2><div className="leave-history">{[...draft.entries].sort((a, b) => b.start.localeCompare(a.start) || b.end.localeCompare(a.end)).map(row => <div key={row.id} className="leave-history-row"><div><b>{row.start ? row.start === row.end ? row.start : `${row.start} ~ ${row.end}` : '이전 합산 내역'}</b><p>{row.note}</p></div><strong>{row.days}일</strong><div className="leave-buttons"><button type="button" className="top-btn ghost" onClick={() => editEntry(row)}>수정</button><button type="button" className="top-btn ghost" onClick={() => { if (window.confirm('이 사용 내역을 삭제하시겠습니까? 저장 버튼을 누르면 반영됩니다.')) { patch({ entries: draft.entries.filter(e => e.id !== row.id) }); if (editing === row.id) resetEntry(); } }}>삭제</button></div></div>)}</div>
+    <h2>사용 내역 {draft.entries.length}건</h2><div className="leave-history">{[...draft.entries].sort((a, b) => b.start.localeCompare(a.start) || b.end.localeCompare(a.end)).map(row => <div key={row.id} className="leave-history-row"><div><b>{row.start ? row.start === row.end ? row.start : `${row.start} ~ ${row.end}` : '이전 합산 내역'}</b><p>{row.note}</p></div><strong>{row.days}일</strong>{canEditHistory && <div className="leave-buttons"><button type="button" className="top-btn ghost" onClick={() => editEntry(row)}>수정</button></div>}</div>)}</div>
     <div className="leave-save"><span>{dirty ? '저장을 누르면 입력한 사용 내역이 바로 반영됩니다.' : '저장된 내역입니다.'}</span></div>
   </fieldset></form>}
   {message && <p role="status" className="form-status">{message}</p>}
