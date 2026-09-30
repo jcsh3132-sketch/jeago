@@ -4,11 +4,12 @@ import { randomUUID, createHash } from 'node:crypto';
 import { getDb } from './db';
 import { cleanPartnerName, uniquePartnerNames } from './partner-names';
 import { ensurePartner, existingPartner, nextInventoryId } from './partner-store';
+import { koreaDateTimeInput, koreaDateTimeToUtc } from './korea-time';
 import { MANAGERS, type Category, type Item, type Partner, type StockTransaction, type InventoryData } from './types';
 
 export class InputError extends Error {}
 export class ConflictError extends InputError {}
-export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'stock.out.batch', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore', 'trash.purge', 'trash.empty'];
+export const ACTIONS = ['item.add', 'item.edit', 'item.delete', 'item.threshold', 'item.category', 'stock.in', 'stock.out', 'stock.out.batch', 'transaction.edit', 'partner.add', 'partner.edit', 'partner.delete', 'category.add', 'category.rename', 'category.move', 'category.delete', 'trash.restore', 'trash.purge', 'trash.empty'];
 type Fields = Record<string, unknown>;
 function text(f: Fields, key: string, max = 120, required = true): string {
   const v = f[key];
@@ -147,6 +148,7 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
   if (actor) f = { ...f, actor_id: actor.id, ...(['item.add', 'stock.in', 'stock.out'].includes(String(f.action)) ? { manager: actor.display_name } : {}) };
   const action = text(f, 'action', 40);
   if (!ACTIONS.includes(action)) throw new InputError('지원하지 않는 요청입니다.');
+  if (action === 'transaction.edit' && !actor) throw new InputError('로그인한 직원만 입출고 내역을 수정할 수 있습니다.');
   const requestId = text(f, 'request_id', 80, false);
   const payload = createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(f).filter(([key]) => key !== 'request_id').sort(([a], [b]) => a.localeCompare(b))))).digest('hex');
   const db = await getDb();
@@ -233,6 +235,40 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       await tx.execute({ sql: 'UPDATE item SET quantity=?,version=version+1 WHERE id=?', args: [remaining, id] });
       await tx.execute({ sql: 'INSERT INTO "transaction"(item_id,quantity,transaction_type,manager,customer_name,date) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)', args: [id, qty, outbound ? '출고' : '입고', owner, customer || null] });
       redirect = `/?category=${encodeURIComponent(current.category)}&item=${id}#item-${id}`;
+    } else if (action === 'transaction.edit') {
+      const id = integer(f.id);
+      const row = (await tx.execute({ sql: 'SELECT * FROM "transaction" WHERE id=?', args: [id] })).rows[0];
+      if (!row) throw new InputError('입출고 내역을 찾을 수 없습니다.');
+      const current = row as unknown as StockTransaction;
+      if (f.expected_version === undefined || f.expected_item_version === undefined || f.expected_target_version === undefined || integer(f.original_item_id) !== current.item_id) throw new ConflictError('최신 내역을 다시 불러와주세요.');
+      checkVersion(f, current);
+      const source = await item(tx, current.item_id), targetId = integer(f.item_id);
+      const target = targetId === source.id ? source : await item(tx, targetId);
+      checkVersion({ expected_version: f.expected_item_version }, source);
+      checkVersion({ expected_version: f.expected_target_version }, target);
+      const quantity = integer(f.quantity), transactionType = text(f, 'transaction_type', 10), owner = text(f, 'manager', 50);
+      if (!['입고', '출고'].includes(transactionType) || !['입고', '출고'].includes(current.transaction_type)) throw new InputError('입출고 유형을 확인해주세요.');
+      const inputDate = text(f, 'date', 30);
+      let date: string;
+      try { date = koreaDateTimeToUtc(inputDate); } catch (error) { throw new InputError((error as Error).message); }
+      if (inputDate === koreaDateTimeInput(current.date)) date = current.date;
+      let customer = transactionType === '출고' ? cleanPartnerName(text(f, 'customer_name')) : '';
+      const oldEffect = current.transaction_type === '입고' ? current.quantity : -current.quantity;
+      const newEffect = transactionType === '입고' ? quantity : -quantity;
+      const balances = target.id === source.id
+        ? [{ model: source, quantity: source.quantity - oldEffect + newEffect }]
+        : [{ model: source, quantity: source.quantity - oldEffect }, { model: target, quantity: target.quantity + newEffect }];
+      for (const balance of balances) {
+        if (!Number.isSafeInteger(balance.quantity) || balance.quantity < 0 || balance.quantity > 2147483647) throw new InputError(`${balance.model.name}: 수정 후 재고가 0~2147483647개 범위를 벗어납니다. 수량과 모델을 확인해주세요.`);
+      }
+      if (transactionType === '출고') customer = await ensurePartner(tx, customer);
+      const next: StockTransaction = { ...current, id, item_id: target.id, quantity, transaction_type: transactionType, manager: owner, customer_name: customer || null, date, version: current.version + 1 };
+      for (const balance of balances) if (balance.quantity !== balance.model.quantity) {
+        await tx.execute({ sql: 'UPDATE item SET quantity=?,version=version+1 WHERE id=?', args: [balance.quantity, balance.model.id] });
+      }
+      await tx.execute({ sql: 'UPDATE "transaction" SET item_id=?,quantity=?,transaction_type=?,manager=?,customer_name=?,date=?,version=version+1 WHERE id=?', args: [next.item_id, next.quantity, next.transaction_type, next.manager, next.customer_name, next.date, id] });
+      await tx.execute({ sql: 'INSERT INTO transaction_edit_audit(id,transaction_id,actor_id,actor_name,before_data,after_data) VALUES (?,?,?,?,?,?)', args: [randomUUID(), id, actor!.id, actor!.display_name, JSON.stringify(current), JSON.stringify(next)] });
+      redirect = '/transactions';
     } else if (action === 'partner.add' || action === 'partner.edit') {
       const values = [cleanPartnerName(text(f, 'name')), text(f, 'contact_person', 80, false), text(f, 'phone', 50, false), text(f, 'note', 255, false)];
       if (await existingPartner(tx, values[0], action === 'partner.edit' ? integer(f.id) : 0)) throw new InputError('같은 이름의 거래처가 이미 등록되어 있습니다.');

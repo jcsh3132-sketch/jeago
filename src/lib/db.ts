@@ -47,6 +47,7 @@ async function initialize() {
         if (statements.length) await upgrade.batch(statements);
       }
       await upgrade.batch([
+        'CREATE TABLE IF NOT EXISTS transaction_edit_audit (id TEXT PRIMARY KEY,transaction_id INTEGER NOT NULL,actor_id TEXT NOT NULL,actor_name TEXT NOT NULL,before_data TEXT NOT NULL,after_data TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS leave_employee (id TEXT PRIMARY KEY,name TEXT NOT NULL,position TEXT NOT NULL,hired TEXT NOT NULL,special REAL NOT NULL DEFAULT 0,entries TEXT NOT NULL DEFAULT \'[]\',version INTEGER NOT NULL DEFAULT 0,updated_by TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS leave_request (id TEXT PRIMARY KEY,payload TEXT NOT NULL,employee_id TEXT NOT NULL,actor_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS app_admin (singleton INTEGER PRIMARY KEY CHECK(singleton=1),user_id TEXT NOT NULL UNIQUE REFERENCES app_user(id))',
@@ -60,6 +61,8 @@ async function initialize() {
         'CREATE INDEX IF NOT EXISTS idx_category_trash ON category(trash_group)',
         'CREATE INDEX IF NOT EXISTS idx_partner_trash ON partner(trash_group)',
       ]);
+      const transactionColumns = new Set((await upgrade.execute('PRAGMA table_info("transaction")')).rows.map(c => c.name));
+      if (!transactionColumns.has('version')) await upgrade.execute('ALTER TABLE "transaction" ADD COLUMN version INTEGER NOT NULL DEFAULT 0');
       const leaveAdminColumns = new Set((await upgrade.execute('PRAGMA table_info(leave_admin)')).rows.map(c => c.name));
       if (!leaveAdminColumns.has('approval_stage')) await upgrade.execute('ALTER TABLE leave_admin ADD COLUMN approval_stage INTEGER CHECK(approval_stage IN (1,2))');
       await upgrade.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_approval_stage ON leave_admin(approval_stage) WHERE approval_stage IS NOT NULL');
