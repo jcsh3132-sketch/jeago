@@ -64,6 +64,44 @@ test('leave ownership prevents cross-account reads, edits and impersonation', as
   const unrelated=(await leaveEmployees(token)).find(e=>e.id===unlinked.id)!;
   await saveLeave(token,{employee:{...unrelated,position:'수정 직급'},request_id:randomUUID()});
   assert.equal((await leaveEmployees(token)).find(e=>e.id===unlinked.id)!.name,'B');
-  await assert.rejects(saveLeave(token,{employee:{...unrelated,version:1,entries:employee.entries},request_id:randomUUID()}),/수정만/);
+  await saveLeave(token,{employee:{...unrelated,version:1,entries:employee.entries},request_id:randomUUID()});
+  const managed = (await leaveEmployees(token)).find(e=>e.id===unlinked.id)!;
+  assert.equal(managed.entries.length,1);
+  await assert.rejects(saveLeave(token,{employee:{...managed,entries:[]},request_id:randomUUID()}),/삭제할 수 없습니다/);
   await assert.rejects(saveLeave(token,{employee:{...edited,entries:[]},request_id:randomUUID()}),/삭제할 수 없습니다/);
+});
+
+test('both leave administrators can register leave for another employee without changing ownership', async () => {
+  const owner = await register({username:'managed.owner',display_name:'관리 대상 직원',password:'1234',password_confirm:'1234'});
+  const ownerToken = await createSession(owner.id,true);
+  const employee = {id:randomUUID(),name:owner.display_name,position:'사원',hired:'2024-01-01',special:0,version:0,entries:[]};
+  await saveLeave(ownerToken,{employee,request_id:randomUUID()});
+  for (const username of ['leave.manager.one','leave.manager.two']) {
+    const manager = await register({username,display_name:username,password:'1234',password_confirm:'1234'});
+    const token = await createSession(manager.id,true);
+    const db = await getDb();
+    await db.execute({sql:'INSERT INTO leave_admin(user_id) VALUES (?)',args:[manager.id]});
+    const current = (await leaveEmployees(token)).find(e=>e.id===employee.id)!;
+    const entry = {id:randomUUID(),start:'2026-09-30',end:'2026-09-30',days:0.5,note:username};
+    const request = {employee:{...current,name:username,entries:[...current.entries,entry]},request_id:randomUUID()};
+    await saveLeave(token,request);
+    await saveLeave(token,request);
+    const saved = (await leaveEmployees(ownerToken))[0];
+    assert.equal(saved.name,owner.display_name);
+    assert.equal(saved.is_self,true);
+    assert.equal(saved.version,current.version+1);
+    assert.equal(saved.entries.length,current.entries.length+1);
+    assert.deepEqual(saved.entries.at(-1),entry);
+    const audit = (await db.execute({sql:'SELECT updated_by,user_id FROM leave_employee WHERE id=?',args:[employee.id]})).rows[0];
+    assert.equal(audit.updated_by,manager.id);
+    assert.equal(audit.user_id,owner.id);
+    await assert.rejects(saveLeave(token,{...request,request_id:randomUUID()}),/다른 회원/);
+    await assert.rejects(saveLeave(token,{employee:{...saved,entries:[]},request_id:randomUUID()}),/삭제할 수 없습니다/);
+    await assert.rejects(listMembers(token),/관리자만/);
+    await db.execute({sql:'DELETE FROM leave_admin WHERE user_id=?',args:[manager.id]});
+    await assert.rejects(saveLeave(token,{employee:{...saved,entries:[...saved.entries,{...entry,id:randomUUID()}]},request_id:randomUUID()}),/본인/);
+  }
+  const saved = (await leaveEmployees(ownerToken))[0];
+  assert.equal(saved.entries.length,2);
+  await assert.rejects(saveLeave(ownerToken,{employee:{...saved,entries:saved.entries.map(e=>({...e,days:1}))},request_id:randomUUID()}),/관리자만/);
 });

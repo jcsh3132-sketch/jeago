@@ -44,7 +44,6 @@ export async function saveLeave(token: string | undefined, input: Record<string,
     if (current ? Number(current.version) !== f.version : f.version !== 0) throw new AuthError('다른 회원이 수정했습니다. 최신 내역을 불러온 뒤 다시 수정해주세요.', 409);
     if (current) {
       const previous = JSON.parse(String(current.entries)) as LeaveEmployee['entries'];
-      if (current.user_id !== user.id && entries.some(entry => !previous.some(old => old.id === entry.id))) throw new AuthError('다른 직원의 내역은 수정만 가능합니다.', 403);
       for (const old of previous) {
         const next = entries.find(entry => entry.id === old.id);
         if (!next) throw new AuthError('연차 사용 이력은 삭제할 수 없습니다.', 403);

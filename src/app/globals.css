@@ -501,3 +501,6 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
 
 .leave-days-save{display:flex;align-items:flex-end;gap:10px;min-width:0}.leave-days-save .field{flex:1;min-width:0;margin-bottom:0}.leave-days-save .top-btn{flex-shrink:0;white-space:nowrap;margin-bottom:0}
 
+
+.leave-date-controls{grid-column:1/-1;margin-bottom:18px}.leave-date-controls>.field{margin-bottom:0}.leave-date-controls>.top-btn{height:45px}
+@media(max-width:760px){.leave-date-controls{margin-bottom:15px}.leave-date-controls>.top-btn{height:48px}}
