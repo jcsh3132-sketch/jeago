@@ -75,7 +75,6 @@ export function LeaveManager({ initial, today, username, displayName, canEditHis
     <div className="leave-controls"><label className="field field-label">로그인 계정<input value={`${displayName} (${username})`} readOnly/></label>{canEditHistory && <label className="field field-label">직원 선택<select value={selected} disabled={pending || !!retry} onChange={e => choose(e.target.value)}>{employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name}{employee.is_self ? ' (본인)' : ''}</option>)}</select></label>}<div className="leave-controls leave-date-controls"><label className="field field-label">계산 기준일<input type="date" value={asOf} onChange={e => setAsOf(e.target.value)}/></label><button type="button" className="top-btn ghost" onClick={() => setAsOf(today)}>오늘 기준</button></div></div>
     {totals && <div className="leave-totals" aria-live="polite">{[['근속 기간', `${totals.months}개월`], ['총 발생 연차', `${totals.earned}일`], ['사용 연차', `${totals.used}일`], ['잔여 연차', `${totals.remaining}일`]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>}
     {calculationError && <p role="alert">{calculationError}</p>}
-    <p className="leave-approval-guide">best7 1차 승인 → best 최종 승인 후 사용 연차에 반영됩니다.</p>
     {draft && <p className="muted">승인 대기: <strong>{pendingLeaveDays(draft.entries)}일</strong> · 대기 중인 연차는 잔여 연차에서 차감하지 않습니다. 기존 저장 내역은 승인 완료로 유지됩니다.</p>}
   </section>
   {message && <p role="status" className="form-status">{message}</p>}
