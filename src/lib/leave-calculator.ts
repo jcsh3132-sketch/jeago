@@ -1,5 +1,22 @@
-export type LeaveEntry = { id: string; start: string; end: string; days: number; note: string };
+export type LeaveApprovalStamp = { user_id: string; username: string; at: string };
+export type LeaveApproval = {
+  status: 'pending_first' | 'pending_final' | 'approved';
+  submitted_by: string; submitted_at: string;
+  first?: LeaveApprovalStamp; final?: LeaveApprovalStamp;
+};
+export type LeaveEntry = { id: string; start: string; end: string; days: number; note: string; approval?: LeaveApproval };
 export type LeaveEmployee = { id: string; name: string; position: string; hired: string; special: number; entries: LeaveEntry[]; version: number; is_self?: boolean };
+// Entries saved before the approval workflow retain their existing deduction.
+export function approvedLeaveDays(entries: LeaveEntry[]) {
+  return entries.reduce((sum, entry) => sum + (!entry.approval || entry.approval.status === 'approved' ? entry.days : 0), 0);
+}
+export function pendingLeaveDays(entries: LeaveEntry[]) {
+  return entries.reduce((sum, entry) => sum + (entry.approval && entry.approval.status !== 'approved' ? entry.days : 0), 0);
+}
+export function approvalLabel(entry: LeaveEntry) {
+  if (!entry.approval) return '기존 승인 내역';
+  return { pending_first: '1차 승인 대기', pending_final: '최종 승인 대기', approved: '승인 완료' }[entry.approval.status];
+}
 export function todayKorea() { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date()); }
 export function parseDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('날짜를 선택해주세요.');

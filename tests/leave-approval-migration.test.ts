@@ -1,0 +1,37 @@
+import { after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { mkdirSync, mkdtempSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { getDb } from '../src/lib/db';
+import { leaveApprovalStage } from '../src/lib/leave-store';
+mkdirSync('work',{recursive:true});
+const filename = join(mkdtempSync(join(resolve('work'),'leave-migration-')),'test.db');
+process.env.JEAGO_TEST_MODE='1';
+process.env.JEAGO_TEST_DATABASE_URL=pathToFileURL(filename).href;
+const legacyEntries = '[{"id":"old-entry","start":"2026-01-01","end":"2026-01-01","days":1,"note":"legacy"}]';
+const legacy = new DatabaseSync(filename);
+legacy.exec(`
+CREATE TABLE app_user(id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,password_hash TEXT NOT NULL);
+INSERT INTO app_user VALUES ('first-id','best7','First','fixture'),('final-id','best','Final','fixture');
+CREATE TABLE leave_admin(user_id TEXT PRIMARY KEY REFERENCES app_user(id));
+INSERT INTO leave_admin VALUES ('first-id'),('final-id');
+CREATE TABLE leave_employee(id TEXT PRIMARY KEY,name TEXT NOT NULL,position TEXT NOT NULL,hired TEXT NOT NULL,special REAL NOT NULL DEFAULT 0,entries TEXT NOT NULL DEFAULT '[]',version INTEGER NOT NULL DEFAULT 0,updated_by TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+`);
+legacy.prepare('INSERT INTO leave_employee(id,name,position,hired,entries,version) VALUES (?,?,?,?,?,7)').run('existing','Existing','Staff','2024-01-01',legacyEntries);
+legacy.close();
+after(async()=>(await getDb()).close());
+test('approval upgrade keeps existing entries and binds best7 then best to stable account IDs',async()=>{
+  const db=await getDb();
+  assert.equal(await leaveApprovalStage('first-id'),1);
+  assert.equal(await leaveApprovalStage('final-id'),2);
+  const saved=(await db.execute("SELECT entries,version FROM leave_employee WHERE id='existing'")).rows[0];
+  assert.equal(saved.entries,legacyEntries);
+  assert.equal(saved.version,7);
+  await db.execute("UPDATE app_user SET username='renamed-best7' WHERE id='first-id'");
+  await db.execute("INSERT INTO app_user(id,username,display_name,password_hash) VALUES ('replacement','best7','Replacement','fixture')");
+  assert.equal(await leaveApprovalStage('first-id'),1);
+  assert.equal(await leaveApprovalStage('replacement'),null);
+  assert.equal((await db.execute("SELECT name FROM inventory_migration WHERE name='leave-approval-roles-v1'")).rows.length,1);
+});

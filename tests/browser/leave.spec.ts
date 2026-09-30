@@ -22,7 +22,8 @@ test('own leave defaults to login and saves or edits entries with one button', a
   await expect(page.getByRole('button',{name:'사용 내역 추가',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'연차 내역 저장'}).click();
   await expect(page.getByText('연차 내역을 저장했습니다.', { exact: true })).toBeVisible();
-  await expect(page.locator('.leave-totals')).toContainText('32.5일');
+  await expect(page.locator('.leave-totals')).toContainText('33일');
+  await expect(page.locator('.leave-history')).toContainText('1차 승인 대기');
   await page.reload();
   await expect(page.getByLabel('성명',{exact:true})).toHaveValue('화면 테스트');
   await expect(page.locator('.leave-history')).toContainText('0.5일');
@@ -69,4 +70,59 @@ test('own leave defaults to login and saves or edits entries with one button', a
   await expect(page.locator('.leave-history-row')).toHaveCount(1);
   expect((await page.request.get('/api/admin/users')).status()).toBe(403);
   await expect(page.getByRole('button',{name:'삭제',exact:true})).toHaveCount(0);
+});
+
+test('employee request is deducted only after first and final approvers confirm it', async ({ page, browser }) => {
+  const firstContext = await browser.newContext({baseURL:'http://127.0.0.1:3100'});
+  const finalContext = await browser.newContext({baseURL:'http://127.0.0.1:3100'});
+  try {
+    await loginForTest(page.request);
+    const firstAccount = await loginForTest(firstContext.request);
+    const finalAccount = await loginForTest(finalContext.request);
+    const file = readdirSync('work').filter(name=>/^browser-[a-f0-9-]+\.db$/.test(name)).map(name=>join('work',name)).sort((a,b)=>statSync(b).birthtimeMs-statSync(a).birthtimeMs)[0];
+    const fixture = new DatabaseSync(file);
+    try {
+      fixture.prepare('UPDATE leave_admin SET approval_stage=NULL').run();
+      for (const [username,stage] of [[firstAccount.username,1],[finalAccount.username,2]] as const) {
+        const user = fixture.prepare('SELECT id FROM app_user WHERE username=?').get(username);
+        if (!user) throw new Error('Missing isolated approver fixture');
+        fixture.prepare('INSERT INTO leave_admin(user_id,approval_stage) VALUES (?,?)').run(String(user.id),stage);
+      }
+    } finally { fixture.close(); }
+    await page.goto('/leave');
+    await page.getByLabel('입사일',{exact:true}).fill('2024-01-01');
+    await page.getByLabel('사용 시작일').fill('2026-10-01');
+    await page.getByLabel('사용 종료일').fill('2026-10-01');
+    await page.getByRole('button',{name:'반차 0.5일'}).click();
+    const note = `approval-${randomUUID()}`;
+    await page.getByLabel('메모',{exact:true}).fill(note);
+    await page.getByRole('button',{name:'연차 내역 저장'}).click();
+    await expect(page.getByText('연차 내역을 저장했습니다.',{exact:true})).toBeVisible();
+    await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0일');
+    await expect(page.locator('.leave-history-row')).toContainText('1차 승인 대기');
+    await expect(page.getByRole('button',{name:'1차 승인',exact:true})).toHaveCount(0);
+    const firstPage = await firstContext.newPage();
+    const finalPage = await finalContext.newPage();
+    await finalPage.goto('/leave');
+    await expect(finalPage.locator('.leave-approval-inbox .leave-history-row').filter({hasText:note})).toHaveCount(0);
+    await firstPage.goto('/leave');
+    await firstPage.locator('.leave-approval-inbox .leave-history-row').filter({hasText:note}).getByRole('button',{name:'1차 승인',exact:true}).click();
+    await expect(firstPage.locator('.leave-page .form-status')).toContainText('1차 승인했습니다.');
+    await page.reload();
+    await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0일');
+    await expect(page.locator('.leave-history-row')).toContainText('최종 승인 대기');
+    await expect(page.locator('.leave-history-row')).toContainText(firstAccount.username);
+    await finalPage.reload();
+    await finalPage.evaluate(()=>window.scrollTo(0,0));
+    await finalPage.screenshot({path:'work/leave-approval-desktop.png',fullPage:true});
+    await finalPage.locator('.leave-approval-inbox .leave-history-row').filter({hasText:note}).getByRole('button',{name:'최종 승인',exact:true}).click();
+    await expect(finalPage.locator('.leave-page .form-status')).toContainText('최종 승인했습니다.');
+    await page.reload();
+    await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0.5일');
+    await expect(page.locator('.leave-history-row')).toContainText('승인 완료');
+    await expect(page.locator('.leave-history-row')).toContainText(finalAccount.username);
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+    await page.screenshot({path:'work/leave-approval-mobile.png',fullPage:true});
+  } finally { await firstContext.close(); await finalContext.close(); }
 });

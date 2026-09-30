@@ -60,6 +60,16 @@ async function initialize() {
         'CREATE INDEX IF NOT EXISTS idx_category_trash ON category(trash_group)',
         'CREATE INDEX IF NOT EXISTS idx_partner_trash ON partner(trash_group)',
       ]);
+      const leaveAdminColumns = new Set((await upgrade.execute('PRAGMA table_info(leave_admin)')).rows.map(c => c.name));
+      if (!leaveAdminColumns.has('approval_stage')) await upgrade.execute('ALTER TABLE leave_admin ADD COLUMN approval_stage INTEGER CHECK(approval_stage IN (1,2))');
+      await upgrade.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_approval_stage ON leave_admin(approval_stage) WHERE approval_stage IS NOT NULL');
+      // Bind the existing accounts once; renaming or re-registering a username must not transfer approval rights.
+      if (!(await upgrade.execute("SELECT name FROM inventory_migration WHERE name='leave-approval-roles-v1'")).rows.length) {
+        for (const [username, stage] of [['best7', 1], ['best', 2]] as const) {
+          await upgrade.execute({ sql: 'UPDATE leave_admin SET approval_stage=? WHERE user_id=(SELECT id FROM app_user WHERE username=?)', args: [stage, username] });
+        }
+        await upgrade.execute("INSERT INTO inventory_migration(name) VALUES ('leave-approval-roles-v1')");
+      }
       const leaveColumns = new Set((await upgrade.execute('PRAGMA table_info(leave_employee)')).rows.map(c => c.name));
       if (!leaveColumns.has('user_id')) await upgrade.execute('ALTER TABLE leave_employee ADD COLUMN user_id TEXT REFERENCES app_user(id)');
       await upgrade.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_employee_user ON leave_employee(user_id) WHERE user_id IS NOT NULL');

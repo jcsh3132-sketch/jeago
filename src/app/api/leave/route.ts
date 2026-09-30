@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthError, SESSION_COOKIE } from '@/lib/auth';
-import { leaveEmployees, saveLeave } from '@/lib/leave-store';
+import { approveLeave, leaveEmployees, saveLeave } from '@/lib/leave-store';
 export const runtime = 'nodejs';
 const headers = { 'Cache-Control': 'no-store' };
 function failure(error: unknown) { return NextResponse.json({ message: error instanceof AuthError ? error.message : '저장 결과를 확인하지 못했습니다. 다시 확인해주세요.' }, { status: error instanceof AuthError ? error.status : 503, headers }); }
@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
     while (true) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > 600000) { await reader.cancel(); throw new AuthError('입력 내용이 너무 큽니다.', 413); } chunks.push(value); }
     let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new AuthError('입력 형식을 확인해주세요.'); }
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('입력 내용을 확인해주세요.');
-    await saveLeave(request.cookies.get(SESSION_COOKIE)?.value, input);
+    if (input.action === 'approve') await approveLeave(request.cookies.get(SESSION_COOKIE)?.value, input);
+    else if (input.action === undefined) await saveLeave(request.cookies.get(SESSION_COOKIE)?.value, input);
+    else throw new AuthError('지원하지 않는 연차 요청입니다.');
     return NextResponse.json({ ok: true }, { headers });
   } catch (error) { return failure(error); }
 }
