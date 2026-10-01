@@ -228,12 +228,13 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       checkVersion(f, current);
       const outbound = action === 'stock.out';
       let customer = outbound ? cleanPartnerName(text(f, 'customer_name')) : '';
+      const inboundSource = outbound ? null : text(f, 'inbound_source', 120, false) || null;
       if (outbound && qty > current.quantity) throw new InputError('출고 수량이 현재 재고보다 많습니다.');
       const remaining = current.quantity + (outbound ? -qty : qty);
       if (!Number.isSafeInteger(remaining) || remaining > 2147483647) throw new InputError('재고 수량이 허용 범위를 초과합니다.');
       if (outbound) customer = await ensurePartner(tx, customer);
       await tx.execute({ sql: 'UPDATE item SET quantity=?,version=version+1 WHERE id=?', args: [remaining, id] });
-      await tx.execute({ sql: 'INSERT INTO "transaction"(item_id,quantity,transaction_type,manager,customer_name,date) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)', args: [id, qty, outbound ? '출고' : '입고', owner, customer || null] });
+      await tx.execute({ sql: 'INSERT INTO "transaction"(item_id,quantity,transaction_type,manager,customer_name,inbound_source,date) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)', args: [id, qty, outbound ? '출고' : '입고', owner, customer || null, inboundSource] });
       redirect = `/?category=${encodeURIComponent(current.category)}&item=${id}#item-${id}`;
     } else if (action === 'transaction.edit') {
       const id = integer(f.id);
@@ -253,6 +254,7 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
       try { date = koreaDateTimeToUtc(inputDate); } catch (error) { throw new InputError((error as Error).message); }
       if (inputDate === koreaDateTimeInput(current.date)) date = current.date;
       let customer = transactionType === '출고' ? cleanPartnerName(text(f, 'customer_name')) : '';
+      const inboundSource = transactionType === '입고' ? (f.inbound_source === undefined ? current.inbound_source : text(f, 'inbound_source', 120, false) || null) : null;
       const oldEffect = current.transaction_type === '입고' ? current.quantity : -current.quantity;
       const newEffect = transactionType === '입고' ? quantity : -quantity;
       const balances = target.id === source.id
@@ -262,11 +264,11 @@ export async function mutate(f: Fields, actor?: Pick<User, 'id' | 'display_name'
         if (!Number.isSafeInteger(balance.quantity) || balance.quantity < 0 || balance.quantity > 2147483647) throw new InputError(`${balance.model.name}: 수정 후 재고가 0~2147483647개 범위를 벗어납니다. 수량과 모델을 확인해주세요.`);
       }
       if (transactionType === '출고') customer = await ensurePartner(tx, customer);
-      const next: StockTransaction = { ...current, id, item_id: target.id, quantity, transaction_type: transactionType, manager: owner, customer_name: customer || null, date, version: current.version + 1 };
+      const next: StockTransaction = { ...current, id, item_id: target.id, quantity, transaction_type: transactionType, manager: owner, customer_name: customer || null, inbound_source: inboundSource, date, version: current.version + 1 };
       for (const balance of balances) if (balance.quantity !== balance.model.quantity) {
         await tx.execute({ sql: 'UPDATE item SET quantity=?,version=version+1 WHERE id=?', args: [balance.quantity, balance.model.id] });
       }
-      await tx.execute({ sql: 'UPDATE "transaction" SET item_id=?,quantity=?,transaction_type=?,manager=?,customer_name=?,date=?,version=version+1 WHERE id=?', args: [next.item_id, next.quantity, next.transaction_type, next.manager, next.customer_name, next.date, id] });
+      await tx.execute({ sql: 'UPDATE "transaction" SET item_id=?,quantity=?,transaction_type=?,manager=?,customer_name=?,inbound_source=?,date=?,version=version+1 WHERE id=?', args: [next.item_id, next.quantity, next.transaction_type, next.manager, next.customer_name, next.inbound_source, next.date, id] });
       await tx.execute({ sql: 'INSERT INTO transaction_edit_audit(id,transaction_id,actor_id,actor_name,before_data,after_data) VALUES (?,?,?,?,?,?)', args: [randomUUID(), id, actor!.id, actor!.display_name, JSON.stringify(current), JSON.stringify(next)] });
       redirect = '/transactions';
     } else if (action === 'partner.add' || action === 'partner.edit') {

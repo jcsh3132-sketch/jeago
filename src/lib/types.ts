@@ -3,7 +3,7 @@ export const DEFAULT_MAINS = ['컬러 복합기', '흑백 복합기', '컬러 �
 export type Category = { id: number; name: string; display_name: string | null; parent_id: number | null; version: number };
 export type Item = { id: number; name: string; quantity: number; low_stock_threshold: number; manager: string; category: string; version: number };
 export type Partner = { id: number; name: string; contact_person: string; phone: string; note: string; version: number };
-export type StockTransaction = { id: number; item_id: number; quantity: number; transaction_type: string; manager: string; customer_name: string | null; date: string; version: number };
+export type StockTransaction = { id: number; item_id: number; quantity: number; transaction_type: string; manager: string; customer_name: string | null; inbound_source: string | null; date: string; version: number };
 export type InventoryData = { categories: Category[]; items: Item[]; partners: Partner[]; transactions: StockTransaction[]; customerNames: string[] };
 export const label = (c?: Category) => c?.display_name || c?.name || '';
 export function ancestry(categories: Category[], key: string) {

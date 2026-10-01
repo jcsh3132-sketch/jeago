@@ -62,6 +62,7 @@ async function initialize() {
         'CREATE INDEX IF NOT EXISTS idx_partner_trash ON partner(trash_group)',
       ]);
       const transactionColumns = new Set((await upgrade.execute('PRAGMA table_info("transaction")')).rows.map(c => c.name));
+      if (!transactionColumns.has('inbound_source')) await upgrade.execute('ALTER TABLE "transaction" ADD COLUMN inbound_source TEXT');
       if (!transactionColumns.has('version')) await upgrade.execute('ALTER TABLE "transaction" ADD COLUMN version INTEGER NOT NULL DEFAULT 0');
       const leaveAdminColumns = new Set((await upgrade.execute('PRAGMA table_info(leave_admin)')).rows.map(c => c.name));
       if (!leaveAdminColumns.has('approval_stage')) await upgrade.execute('ALTER TABLE leave_admin ADD COLUMN approval_stage INTEGER CHECK(approval_stage IN (1,2))');

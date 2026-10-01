@@ -29,6 +29,7 @@ export function TransactionEditor({ transaction, items, categories, customerName
         <label className="field field-label">수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value={quantity} onChange={event => setQuantity(event.target.value)} required/></label>
       </div>
       {type === '출고' && <label className="field field-label">출고업체<input name="customer_name" list="transaction-edit-partners" defaultValue={transaction.customer_name || ''} maxLength={120} required/><datalist id="transaction-edit-partners">{customerNames.map(name => <option value={name} key={name}/>)}</datalist></label>}
+      {type === '입고' && <><Field name="inbound_source" label="입고처" value={transaction.inbound_source || ''} maxLength={120}/><p className="muted">선택 입력 · 입고 내역에만 메모로 저장되며 거래처 관리에는 등록되지 않습니다.</p></>}
       <Field name="manager" label="담당자" value={transaction.manager} maxLength={50} required/>
       <div className="transaction-stock-preview" aria-live="polite"><strong>수정 후 재고</strong>{validQuantity ? balances.map(({ item, after }) => <p key={item.id} className={after < 0 || after > 2147483647 ? 'transaction-stock-error' : ''}>{item.name}: {item.quantity}개 → <b>{after}개</b></p>) : <p>올바른 수량을 입력해주세요.</p>}</div>
       <p className="muted">수량·모델·유형을 수정하면 현재 재고도 함께 조정됩니다. 변경 전후 내용과 수정한 직원은 별도로 기록됩니다.</p>
