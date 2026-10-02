@@ -72,7 +72,19 @@ async function jsonRequest(url: string, options: RequestInit, platform: FeePlatf
   try { response = await fetch(url, { ...options, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(Math.min(10000, remaining)) }); }
   catch { throw new ProviderError('API 서버에 연결하지 못했습니다. IP 허용 설정과 연결 상태를 확인해주세요.'); }
   if (!response.ok) {
-    await response.body?.cancel();
+    // Only expose documented error categories; provider bodies can contain credentials.
+    let code = '', message = '';
+    const reader = response.body?.getReader();
+    if (reader) {
+      const chunks: Uint8Array[] = []; let size = 0;
+      while (true) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > 16384) { await reader.cancel(); break; } chunks.push(value); }
+      try { const body = row(JSON.parse(Buffer.concat(chunks).toString('utf8'))); code = text(body.code); message = text(body.message); } catch { /* no raw response is returned */ }
+    }
+    const name = platform === 'coupang' ? '쿠팡' : '네이버';
+    if (code === 'GW.IP_NOT_ALLOWED' || /ip.*(allow|register|white)|whitelist|not allowed.*ip/i.test(message)) throw new ProviderError(name + '에서 운영 서버 IP를 허용하지 않았습니다. API 설정의 허용 IP를 확인해주세요(HTTP ' + response.status + ').');
+    if (code === 'GW.AUTHN') throw new ProviderError('네이버 인증을 거절했습니다(GW.AUTHN). 커머스API 키와 애플리케이션 연결을 확인해주세요.');
+    if (code === 'GW.AUTHZ') throw new ProviderError('네이버 API 조회 권한이 없습니다(GW.AUTHZ). 애플리케이션의 정산 API 권한을 확인해주세요.');
+    if (/signature/i.test(message)) throw new ProviderError('쿠팡 인증 서명이 거절되었습니다. Access Key와 Secret Key의 짝 및 유효기간을 확인해주세요.');
     if (response.status === 401 || response.status === 403) throw new ProviderError('API 인증 또는 접근 권한이 거절되었습니다. 키·판매자 ID·API 권한·허용 IP를 확인해주세요.');
     if (response.status === 429) throw new ProviderError('API 요청 한도를 초과했습니다. 잠시 후 다시 조회해주세요.');
     throw new ProviderError(`${platform === 'coupang' ? '쿠팡' : '네이버'} API 조회에 실패했습니다(HTTP ${response.status}).`);
