@@ -124,6 +124,7 @@ export async function collectFees(platform: FeePlatform, credentials: ApiCredent
   for (let date = from; date <= to; date = new Date(Date.parse(date + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10)) {
     for (let page = 1; ; page++) {
       if (++requests > 40) throw new ProviderError('정산내역이 많습니다. 조회 기간을 좁혀주세요.');
+      await new Promise(resolve => setTimeout(resolve, 1100));
       const query = new URLSearchParams({ searchDate: date, periodType: 'SETTLE_CASEBYCASE_SETTLE_BASIS_DATE', pageNumber: String(page), pageSize: '1000' });
       const body = await jsonRequest('https://api.commerce.naver.com/external/v1/pay-settle/settle/commission-details?' + query, { headers: { Authorization: 'Bearer ' + auth.access_token } }, platform, deadline);
       const pagination = row(body.pagination), pages = number(pagination.totalPages);
@@ -134,3 +135,4 @@ export async function collectFees(platform: FeePlatform, credentials: ApiCredent
   }
   return naverFeeRecords(all);
 }
+

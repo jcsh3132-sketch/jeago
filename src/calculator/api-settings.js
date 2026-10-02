@@ -70,7 +70,7 @@ function renderApiSettings() {
     disconnect.hidden = !apiState.canManage || !c?.configured;
     form.querySelector('[data-api-refresh]').disabled = !c?.configured || !!c?.syncing;
     const synced = c?.syncedAt ? new Date(c.syncedAt).toLocaleString('ko-KR') : '';
-    form.querySelector('.api-connection-status').textContent = c?.configured ? `키 등록됨 · ${c.fees.length}개 상품${synced ? ' · 조회 ' + synced : ' · 수수료 조회 필요'}${c.lastError ? ' · ' + c.lastError : ''}` : '연결된 회사 API가 없습니다.';
+    form.querySelector('.api-connection-status').textContent = c?.configured ? `키 등록됨 · ${c.fees.length}개 상품${synced ? ' · 조회 ' + synced : ' · 수수료 조회 필요'}${c.syncing ? ' · 회사 PC 조회 대기/진행 중' : ''}${c.lastError ? ' · ' + c.lastError : ''}` : '연결된 회사 API가 없습니다.';
   }
 }
 
@@ -80,6 +80,7 @@ async function refreshPlatform(platform, automatic = false) {
   status.textContent = '수수료를 조회하고 있습니다.'; button.disabled = true;
   try {
     await apiRequest({ action: 'refresh', platform, ...(!automatic ? { from: form.elements.from.value, to: form.elements.to.value } : {}) });
+    if (connectionFor(platform)?.syncing) { status.textContent = '회사 PC에 조회를 요청했습니다. PC 연결 프로그램이 켜져 있으면 자동 갱신됩니다.'; return; }
     const count = connectionFor(platform)?.fees.length || 0;
     status.textContent = count ? `${count}개 상품의 수수료를 갱신했습니다.` : '연결은 확인됐지만 선택 기간의 상품 수수료 내역이 없습니다. 조회 날짜를 변경해주세요.';
   } catch (error) {
@@ -127,3 +128,5 @@ function setupApiSettings() {
 }
 
 setupApiSettings();
+
+setInterval(() => { if (apiState.platforms.some(c => c.syncing)) apiRequest().catch(() => {}); }, 5000);

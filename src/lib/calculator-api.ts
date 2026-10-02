@@ -99,6 +99,10 @@ export async function refreshCalculatorFees(token: string | undefined, input: Re
   await limitAuth('calculator-fee-refresh:' + platform, 4, 60);
   const acquired = await db.execute({ sql: 'UPDATE calculator_api_connection SET sync_id=?,sync_until=?,attempted_at=? WHERE platform=? AND revision=? AND sync_until<?', args: [id, now + 60000, now, platform, c.revision, now] });
   if (!acquired.rowsAffected) throw new AuthError('다른 직원이 수수료를 조회하고 있습니다. 잠시 후 다시 확인해주세요.', 409);
+  if (process.env.VERCEL && process.env.JEAGO_TEST_MODE !== '1') {
+    await db.execute({ sql: 'UPDATE calculator_api_connection SET sync_id=?,sync_until=?,last_error=\'\' WHERE platform=? AND revision=? AND sync_id=?', args: ['pc:' + from + ':' + to + ':' + id, now + 86400000, platform, c.revision, id] });
+    return { queued: true };
+  }
   try {
     const fees = await collectFees(platform, decryptCredentials(platform, c.credentials), from, to);
     const published = await db.execute({ sql: 'UPDATE calculator_api_connection SET fees=?,synced_at=?,range_from=?,range_to=?,last_error=\'\',sync_id=NULL,sync_until=0 WHERE platform=? AND revision=? AND sync_id=?', args: [JSON.stringify(fees), Date.now(), from, to, platform, c.revision, id] });
