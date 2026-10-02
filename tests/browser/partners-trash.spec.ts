@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { loginForTest } from './auth-helper';
+import { assignTestAdministrator, loginForTest } from './auth-helper';
 
 test('outbound autocomplete, automatic partners, and confirmed individual/all permanent deletion', async ({ page, request }) => {
-  await loginForTest(page.request);
+  const admin = await loginForTest(page.request);
   const headers = { Origin: 'http://127.0.0.1:3100' };
   expect((await request.post('/api/inventory', { headers, data: { action: 'trash.empty', request_id: randomUUID() } })).status()).toBe(401);
   const db = new DatabaseSync('instance/inventory-next.db', { readOnly: true });
@@ -42,7 +42,10 @@ test('outbound autocomplete, automatic partners, and confirmed individual/all pe
   await page.goto(`/history/${id}`);
   await expect(page.locator('.history-table tbody tr')).toHaveCount(4);
   await mutate({ action: 'item.delete', id, expected_version: 4 });
-  await page.goto('/trash');
+  assignTestAdministrator(admin.username);
+  await page.goto('/account');
+  await page.getByRole('navigation', { name: '관리자 메뉴' }).getByRole('link', { name: '휴지통', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/trash$/);
   const row = page.locator('.trash-entry').filter({ hasText: 'E2E-영구삭제대상' });
   await expect(row).toBeVisible();
   page.once('dialog', dialog => dialog.dismiss());

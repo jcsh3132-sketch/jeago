@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { requireAdministrator, listMembers } from '@/lib/admin';
 import { AuthError, SESSION_COOKIE } from '@/lib/auth';
+import { AdminNavigation } from '@/components/admin-navigation';
 import { Shell } from '@/components/shell';
 import { MemberManagement } from '@/components/member-management';
 export const runtime = 'nodejs';
@@ -12,5 +13,5 @@ export default async function MembersPage() {
     if (error instanceof AuthError) redirect(error.status === 401 ? '/' : '/account');
     throw error;
   });
-  return <Shell username={user.display_name}><MemberManagement initial={await listMembers(token)}/></Shell>;
+  return <Shell username={user.display_name}><AdminNavigation/><MemberManagement initial={await listMembers(token)}/></Shell>;
 }

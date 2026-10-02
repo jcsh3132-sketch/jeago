@@ -1,0 +1,1496 @@
+/* =========================================================
+  베스트 시스템 판매 계산기 - style.css
+  ---------------------------------------------------------
+  이 파일은 디자인만 담당합니다.
+  글자색, 배경색, 카드 크기, 여백, 반응형 디자인을 수정할 수 있습니다.
+========================================================= */
+
+
+/* =========================================================
+  1. 전체 색상 설정
+  ---------------------------------------------------------
+  :root는 라이트모드 기본 색상입니다.
+  색상을 바꾸고 싶으면 이 영역의 색상 코드만 수정하면 됩니다.
+========================================================= */
+:root {
+  --bg: #f7fbff;                    /* 전체 배경색 */
+  --card: #ffffff;                  /* 카드 배경색 */
+  --card-soft: #f1f7ff;             /* 연한 파란색 카드 배경 */
+  --text: #22304a;                  /* 기본 글자색 */
+  --muted: #748198;                 /* 보조 설명 글자색 */
+  --line: #dfe8f3;                  /* 테두리 색상 */
+  --input: #fbfdff;                 /* 입력칸 배경색 */
+
+  --primary: #6ea8ff;               /* 판매용 메인 컬러 */
+  --primary-strong: #3f7fe0;        /* 판매용 강조 컬러 */
+
+  --success: #edf9f2;               /* 마진/수익 강조 배경 */
+  --rent-soft: #fff4df;             /* 임대용 연한 배경색 */
+  --rent-strong: #a96512;           /* 임대용 강조 컬러 */
+
+  --shadow: 0 18px 50px rgba(79, 100, 135, 0.12);
+}
+
+
+/* =========================================================
+  2. 다크모드 색상 설정
+  ---------------------------------------------------------
+  body에 dark 클래스가 붙으면 아래 색상으로 바뀝니다.
+  script.js에서 다크모드 버튼 클릭 시 body.dark를 추가/제거합니다.
+========================================================= */
+body.dark {
+  --bg: #0b1423;
+  --card: #151f33;
+  --card-soft: #121d30;
+  --text: #e8edf5;
+  --muted: #aab5c8;
+  --line: #2b3c59;
+  --input: #101a2b;
+
+  --primary: #f0a500;
+  --primary-strong: #f0a500;
+  --accent-hover: #ffb51b;
+  --accent-bg: rgba(240, 165, 0, 0.12);
+
+  --success: #121d30;
+  --rent-soft: rgba(240, 165, 0, 0.12);
+  --rent-strong: #f0a500;
+
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+
+/* =========================================================
+  3. 기본 초기화
+========================================================= */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Noto Sans KR",
+    sans-serif;
+
+  background:
+    radial-gradient(circle at 5% 5%, rgba(110, 168, 255, 0.16), transparent 26%),
+    radial-gradient(circle at 92% 10%, rgba(255, 206, 99, 0.18), transparent 24%),
+    var(--bg);
+
+  color: var(--text);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 0;
+}
+
+
+/* =========================================================
+  4. 전체 앱 박스
+========================================================= */
+.app {
+  width: min(1320px, calc(100% - 36px));
+  margin: 30px auto;
+  padding: 28px;
+
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+body.dark .app {
+  background: rgba(21, 31, 51, 0.9);
+}
+
+body.dark .page-tab.active.sale,
+body.dark .page-tab.active.rent {
+  background: var(--accent-bg);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+body.dark .store-tab.active {
+  background: var(--primary);
+  color: #0b1423;
+  border-color: var(--primary);
+  box-shadow: 0 10px 24px rgba(240, 165, 0, 0.2);
+}
+
+body.dark .store-tab.active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+body.dark .rent-view .model-toggle,
+body.dark .rent-view .model-toggle[aria-expanded="true"] {
+  background: var(--primary);
+  color: #0b1423;
+}
+
+body.dark .rent-view .model-toggle:hover,
+body.dark .rent-view .model-toggle[aria-expanded="true"]:hover {
+  background: var(--accent-hover);
+}
+
+body.dark .rent-view .model-dropdown {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+body.dark .rent-view .model-group-title {
+  background: var(--accent-bg);
+  color: var(--primary);
+}
+
+body.dark .rent-view .model-option:hover,
+body.dark .rent-view .model-option:focus-visible {
+  background: var(--accent-bg);
+}
+
+body.dark .rent-view .choice-card:has(input:checked),
+body.dark .rent-view .option-card:has(input:checked) {
+  background: var(--accent-bg);
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+body.dark .rent-view .choice-card input,
+body.dark .rent-view .option-card input {
+  accent-color: var(--primary);
+}
+
+body.dark .primary-btn.rent-btn {
+  background: var(--primary);
+  color: #0b1423;
+}
+
+body.dark .primary-btn.rent-btn:hover {
+  background: var(--accent-hover);
+}
+
+body.dark .rent-view .result-main {
+  background: var(--card-soft);
+  border-color: var(--primary);
+}
+
+body.dark .rent-view .result-main .net-amount,
+body.dark .rent-view .vat-note {
+  color: var(--primary);
+}
+
+body.dark .rent-view .result-row.highlight,
+body.dark .rent-view .deposit-box {
+  background: var(--accent-bg);
+  border-color: var(--primary);
+}
+
+body.dark .rent-view .deposit-box strong {
+  color: var(--primary);
+}
+
+body.dark .rent-view button:focus-visible,
+body.dark .rent-view input:focus-visible,
+body.dark .rent-view select:focus-visible {
+  outline-color: rgba(240, 165, 0, 0.5);
+}
+
+
+/* =========================================================
+  5. 상단 헤더
+========================================================= */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.version-badge {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card-soft);
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.title p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.mode-btn {
+  border: 1px solid var(--line);
+  background: var(--card-soft);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+}
+
+
+/* =========================================================
+  6. 판매용 / 임대용 전환 탭
+========================================================= */
+.page-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  margin: 24px 0 18px;
+  padding: 8px;
+
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+
+.page-tab {
+  min-height: 74px;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--muted);
+  padding: 14px 18px;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.page-tab strong {
+  display: block;
+  font-size: 18px;
+  color: inherit;
+  margin-bottom: 4px;
+}
+
+.page-tab span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.page-tab.active.sale {
+  background: var(--card-soft);
+  color: var(--primary-strong);
+  box-shadow: inset 0 0 0 1px rgba(110, 168, 255, 0.25);
+}
+
+.page-tab.active.rent {
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+  box-shadow: inset 0 0 0 1px rgba(208, 138, 0, 0.22);
+}
+
+
+/* =========================================================
+  7. 판매용 스토어 선택 탭
+========================================================= */
+.store-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 0 0 24px;
+}
+
+.store-tab {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 18px;
+  padding: 14px 12px;
+  font-weight: 800;
+  transition: 0.2s ease;
+}
+
+.store-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 10px 24px rgba(110, 168, 255, 0.26);
+}
+
+
+/* =========================================================
+  8. 공통 레이아웃
+========================================================= */
+.layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 26px;
+  box-shadow: 0 10px 32px rgba(79, 100, 135, 0.08);
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+
+.panel .desc {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.badge {
+  background: var(--card-soft);
+  color: var(--primary-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.badge.rent {
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+}
+
+
+/* =========================================================
+  9. 입력 폼 디자인
+========================================================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.model-picker {
+  position: relative;
+}
+
+.model-input-wrap {
+  padding-right: 6px;
+}
+
+.model-toggle {
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--card-soft);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 900;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.model-toggle[aria-expanded="true"] {
+  transform: rotate(180deg);
+  background: var(--primary);
+  color: #fff;
+}
+
+.model-dropdown {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: 88px;
+  left: 0;
+  right: 0;
+  max-height: 390px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.model-dropdown.open {
+  display: block;
+}
+
+.model-group + .model-group {
+  margin-top: 8px;
+}
+
+.model-group-title {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--card-soft);
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.model-option {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.42fr) minmax(0, 1fr);
+  width: 100%;
+  gap: 12px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.model-option:last-child {
+  border-bottom: 0;
+}
+
+.model-option:hover,
+.model-option:focus-visible {
+  background: var(--card-soft);
+}
+
+.model-option strong {
+  font-size: 14px;
+}
+
+.model-option span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-empty {
+  padding: 22px 12px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+.field-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.field-status.success {
+  color: #18864b;
+}
+
+.field-status.warning {
+  color: #c56b00;
+}
+
+.field-status.error {
+  color: #c23b3b;
+}
+
+label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 850;
+}
+
+.input-wrap {
+  display: flex;
+  align-items: center;
+  height: 54px;
+  padding: 0 14px;
+
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+
+  border: 0;
+  outline: 0;
+  background: transparent;
+
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+input[type="text"] {
+  font-size: 17px;
+}
+
+#productCost[readonly] {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.choice-row,
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.choice-card,
+.option-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--input);
+  cursor: pointer;
+}
+
+.choice-card:has(input:checked),
+.option-card:has(input:checked) {
+  border-color: #f5b84b;
+  background: var(--rent-soft);
+}
+
+.choice-card input,
+.option-card input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: #d08a00;
+}
+
+.option-card span,
+.option-card strong,
+.option-card small {
+  display: block;
+}
+
+.option-card small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+#colorCopiesField.hidden {
+  display: none;
+}
+
+.unit {
+  color: var(--muted);
+  font-weight: 800;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.primary-btn {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 17px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.primary-btn.rent-btn {
+  background: #ffc774;
+  color: #2f210d;
+}
+
+.rent-view .model-toggle {
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+}
+
+.rent-view .model-toggle[aria-expanded="true"] {
+  background: #d99a3e;
+  color: #2f210d;
+}
+
+.rent-view .model-dropdown {
+  border-color: rgba(169, 101, 18, 0.28);
+}
+
+.rent-view .model-group-title {
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+}
+
+.rent-view .model-option:hover,
+.rent-view .model-option:focus-visible {
+  background: var(--rent-soft);
+}
+
+.rent-view .choice-card:has(input:checked),
+.rent-view .option-card:has(input:checked) {
+  border-color: #d99a3e;
+}
+
+.rent-view button:focus-visible,
+.rent-view input:focus-visible,
+.rent-view select:focus-visible {
+  outline-color: rgba(217, 154, 62, 0.48);
+}
+
+.ghost-btn {
+  background: var(--card-soft);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+
+/* =========================================================
+  10. 오른쪽 결과값 영역
+========================================================= */
+.result-panel {
+  position: sticky;
+  top: 24px;
+}
+
+.model-box {
+  background: var(--card-soft);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.model-box.rent {
+  background: var(--rent-soft);
+}
+
+.model-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.model-box strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.model-box > small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vat-note {
+  margin-left: 5px;
+  color: var(--rent-strong);
+  font-size: 12px;
+}
+
+.deposit-box {
+  display: grid;
+  gap: 5px;
+  margin-top: 16px;
+  padding: 17px;
+  border: 1px solid rgba(208, 138, 0, 0.3);
+  border-radius: 18px;
+  background: var(--rent-soft);
+}
+
+.deposit-box span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.deposit-box strong {
+  color: var(--rent-strong);
+  font-size: 24px;
+}
+
+.deposit-box small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.result-main {
+  background: linear-gradient(135deg, var(--card-soft), var(--card));
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+.rent-view .result-main {
+  background: linear-gradient(135deg, var(--rent-soft), var(--card));
+  border-color: rgba(169, 101, 18, 0.24);
+}
+
+.rent-view .result-row.highlight {
+  background: var(--rent-soft);
+  border-color: rgba(169, 101, 18, 0.24);
+}
+
+.result-label {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.net-amount {
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 44px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  font-weight: 950;
+}
+
+.result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.result-row span:first-child {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.result-row strong {
+  font-size: 17px;
+}
+
+.result-row.highlight {
+  background: var(--success);
+}
+
+.margin-grade {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.margin-grade.waiting {
+  background: var(--card-soft);
+  color: var(--muted);
+}
+
+.margin-grade.bad {
+  background: #fff0f0;
+  color: #bd2c2c;
+}
+
+.margin-grade.normal {
+  background: #fff7e8;
+  color: #a86600;
+}
+
+.margin-grade.good {
+  background: var(--success);
+  color: #18864b;
+}
+
+body.dark .margin-grade.bad {
+  background: #351d24;
+  color: #ff9a9a;
+}
+
+
+/* =========================================================
+  11. 최근 계산 기록
+========================================================= */
+.history {
+  margin-top: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.history-clear {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.history-clear:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(110, 168, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.history-list {
+  display: grid;
+  gap: 9px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.history-item strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.history-model-load {
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.history-model-load:hover,
+.history-model-load:focus-visible {
+  border-color: var(--rent-strong);
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.price-guide-list {
+  display: grid;
+  gap: 0;
+  margin-top: 12px;
+}
+
+.price-guide-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.price-guide-list > div:last-child {
+  border-bottom: 0;
+}
+
+.price-guide-list span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.price-guide-list strong {
+  color: var(--text);
+  font-size: 17px;
+}
+
+.price-guide-list .recommended {
+  background: transparent;
+  border-color: var(--line);
+}
+
+.price-guide-list .recommended strong {
+  color: var(--primary-strong);
+}
+
+.price-guide-note {
+  margin: 10px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.price-table-btn {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.price-table-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary-strong);
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.price-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  place-items: center;
+  padding: 28px;
+}
+
+.price-modal.open {
+  display: grid;
+}
+
+.price-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 18, 34, 0.68);
+}
+
+.price-modal-dialog {
+  position: relative;
+  width: min(1380px, 96vw);
+  height: 88vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: 0 24px 70px rgba(8, 18, 34, 0.28);
+}
+
+.price-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.price-modal-head h2,
+.price-modal-head p {
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.price-table-search {
+  flex: 1;
+  max-width: 420px;
+}
+
+.price-table-search input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: 0;
+  background: var(--input);
+  color: var(--text);
+  font: inherit;
+}
+
+.price-table-search input:focus {
+  border-color: var(--primary);
+}
+
+.price-modal-head p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.price-modal-close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 27px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.price-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.printer-price-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.printer-price-table th,
+.printer-price-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.printer-price-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-soft);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.column-filter-btn {
+  width: 23px;
+  height: 23px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.column-filter-btn:hover,
+.column-filter-btn[aria-expanded="true"],
+.column-filter-btn.active {
+  border-color: var(--primary);
+  color: var(--primary-strong);
+}
+
+.column-filter-popover {
+  position: fixed;
+  z-index: 1200;
+  width: 240px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 12px 32px rgba(8, 18, 34, 0.24);
+}
+
+.column-filter-popover[hidden] {
+  display: none;
+}
+
+.column-filter-popover label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.column-filter-options {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input);
+}
+
+.column-filter-options[hidden] {
+  display: none;
+}
+
+.column-filter-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.column-filter-options label:last-child {
+  border-bottom: 0;
+}
+
+.column-filter-options input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.column-filter-options span {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.column-filter-popover button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card-soft);
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.printer-price-table tbody th {
+  color: var(--text);
+}
+
+.printer-price-table tbody tr:hover {
+  background: var(--input);
+}
+
+.printer-price-table .price-column {
+  min-width: 120px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.printer-price-table .price-heading {
+  min-width: 120px;
+  text-align: center;
+}
+
+.vat-exclusive-label {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.printer-category {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.printer-category.category-color {
+  border-color: #7c6ee6;
+  background: rgba(124, 110, 230, 0.12);
+  color: #6b5dd3;
+}
+
+.printer-category.category-mono {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+  color: #526176;
+}
+
+.printer-category.category-ink {
+  border-color: #269b72;
+  background: rgba(38, 155, 114, 0.12);
+  color: #21845f;
+}
+
+.printer-category.category-rental {
+  border-color: var(--rent-strong);
+  background: var(--rent-soft);
+  color: var(--rent-strong);
+}
+
+body.dark .printer-category.category-color { color: #b8adff; }
+body.dark .printer-category.category-mono { color: #c4cfdd; }
+body.dark .printer-category.category-ink { color: #69d5ac; }
+
+.price-view-tabs {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--input);
+}
+
+.price-view-tab {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.price-view-tab.active {
+  background: var(--card);
+  color: var(--primary-strong);
+  box-shadow: 0 1px 4px rgba(8, 18, 34, 0.12);
+}
+
+.printer-price-table[hidden] {
+  display: none;
+}
+
+.printer-price-table .compatible-column {
+  min-width: 260px;
+  max-width: 420px;
+  white-space: normal;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.price-table-empty {
+  padding: 36px !important;
+  color: var(--muted);
+  text-align: center !important;
+}
+
+
+/* =========================================================
+  12. 페이지 표시/숨김
+========================================================= */
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+
+/* =========================================================
+  13. 반응형 디자인
+========================================================= */
+@media (max-width: 980px) {
+  .app {
+    padding: 20px;
+    margin: 18px auto;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .store-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .result-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .page-switch,
+  .store-tabs,
+  .form-grid,
+  .button-row {
+    grid-template-columns: 1fr;
+  }
+
+  .net-amount {
+    font-size: 34px;
+  }
+
+  .model-option {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .choice-row,
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .price-modal {
+    padding: 12px;
+  }
+
+  .price-modal-dialog {
+    width: 100%;
+    height: 92vh;
+  }
+
+  .price-modal-head {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .price-table-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .price-view-tabs {
+    order: 2;
+  }
+
+}
+
+/* Fit the inventory workspace and narrow phones. */
+body{padding:0}.app{width:100%;max-width:none;margin:0;padding:20px}input,select{min-width:0}.history-head{flex-wrap:wrap}.history-head small{color:var(--muted);font-size:11px}@media(max-width:600px){.app{padding:12px}.title h1{font-size:20px}}

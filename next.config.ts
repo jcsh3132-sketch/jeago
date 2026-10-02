@@ -4,7 +4,7 @@ const config: NextConfig = {
   // Apply only to route bundles; '*' also matches Next's internal server trace
   // where substring matching would incorrectly exclude its "framework" folder.
   outputFileTracingExcludes: { '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'] },
-  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'] },
+  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content/*': ['./src/calculator/index.html', './src/calculator/style.css', './src/calculator/script.js'] },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

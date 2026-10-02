@@ -7,7 +7,7 @@ import { Shell } from '@/components/shell';
 import { loadInventory } from '@/lib/inventory';
 import { Dashboard } from '@/components/dashboard';
 import { Categories, History, ItemEditor, Partners, StockEditor } from '@/components/pages';
-import { Trash } from '@/components/trash';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 type Props = { params: Promise<{ path?: string[] }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -30,7 +30,7 @@ async function InventoryPage({ params, searchParams, user }: Props & { user: Use
   if (path.length > 2 || !['', 'add', 'categories', 'partners', 'transactions', 'edit', 'inbound', 'outbound', 'history', 'trash', 'batch-outbound'].includes(section)) notFound();
   const itemRoute = ['edit', 'inbound', 'outbound', 'history'].includes(section);
   if (itemRoute ? path.length !== 2 || !/^\d+$/.test(path[1]) : path.length > 1) notFound();
-  if (section === 'trash') return <Trash/>;
+  if (section === 'trash') redirect('/admin/trash');
   const data = await loadInventory({ history: ['history', 'transactions'].includes(section) });
   if (itemRoute) {
     const item = data.items.find(i => i.id === Number(path[1]));

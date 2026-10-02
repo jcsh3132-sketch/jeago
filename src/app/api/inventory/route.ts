@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ACTIONS, ConflictError, InputError, mutate } from '@/lib/inventory';
+import { isAdministrator } from '@/lib/admin';
 import { sessionUser, SESSION_COOKIE } from '@/lib/auth';
 export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
     const fields = await request.json();
     if (!fields || typeof fields !== 'object' || Array.isArray(fields)) throw new InputError('입력 형식이 올바르지 않습니다.');
     if (!ACTIONS.includes(fields.action)) throw new InputError('지원하지 않는 요청입니다.');
+    if (fields.action.startsWith('trash.') && !await isAdministrator(user.id)) return NextResponse.json({ ok: false, message: '관리자만 휴지통을 관리할 수 있습니다.' }, { status: 403 });
     if (typeof fields.request_id !== 'string' || !/^[a-f0-9-]{36}$/i.test(fields.request_id)) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
     if (fields.action !== 'stock.out.batch' && !fields.action.endsWith('.add') && !fields.action.startsWith('trash.') && fields.expected_version === undefined) throw new ConflictError('화면을 새로 불러온 뒤 다시 입력하세요.');
     return NextResponse.json({ ok: true, ...await mutate(fields, user) });

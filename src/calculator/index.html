@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>베스트 시스템 판매 계산기</title>
+
+  
+  <link rel="stylesheet" href="/calculator/content/style" />
+</head>
+
+<body data-account="__CALCULATOR_ACCOUNT__">
+  <main class="app">
+    
+    <header class="topbar">
+      <div class="title">
+        <div class="title-line">
+          <h1>베스트 시스템 판매 계산기</h1>
+          
+        </div>
+        <p>판매 마진과 월 임대료를 계산합니다.</p>
+      </div>
+
+      <div class="top-actions">
+        
+        <span class="pill" id="todayText"></span>
+
+        <button class="price-table-btn" id="priceTableBtn" type="button">가격표</button>
+
+        
+        <button class="mode-btn" id="modeBtn" type="button">🌙 다크모드</button>
+      </div>
+    </header>
+
+    
+    <section class="page-switch" aria-label="계산기 유형 선택">
+      <button class="page-tab sale active" type="button" data-page="sale">
+        <strong>판매용 계산</strong>
+        <span>스토어별 상품 판매 금액, 수수료, 마진 계산</span>
+      </button>
+
+      <button class="page-tab rent" type="button" data-page="rent">
+        <strong>임대용 계산</strong>
+        <span>모델별 임대료, 기간, 보증금, 예상 수익 계산</span>
+      </button>
+    </section>
+
+    
+    <section id="salePage" class="page active">
+      
+      <section class="store-tabs" aria-label="스토어 선택">
+        <button class="store-tab active" type="button" data-store="smartstore">스마트스토어</button>
+        <button class="store-tab" type="button" data-store="coupang">쿠팡</button>
+        <button class="store-tab" type="button" data-store="gmarket">지마켓/옥션</button>
+        <button class="store-tab" type="button" data-store="eleven">11번가</button>
+        <button class="store-tab" type="button" data-store="school">학교장터</button>
+      </section>
+
+      <section class="layout">
+        
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>정보입력</h2>
+            </div>
+
+            
+            <span class="badge" id="storeBadge">스마트스토어</span>
+          </div>
+
+          <div class="form-grid">
+            
+            <div class="field full model-picker">
+              <label for="modelName">모델명</label>
+              <div class="input-wrap model-input-wrap">
+                <input id="modelName" type="text" placeholder="모델명을 입력하거나 선택하세요" maxlength="100" autocomplete="off" />
+                <button class="model-toggle" id="modelToggleBtn" type="button" aria-label="모델 목록 열기" aria-expanded="false">▾</button>
+              </div>
+              <div class="model-dropdown" id="modelDropdown" role="listbox" aria-label="모델 목록"></div>
+              <p class="field-status" id="modelLookupStatus">가격표 파일 연결을 준비하고 있습니다.</p>
+            </div>
+
+            
+            <div class="field">
+              <label for="salePrice">판매금액</label>
+              <div class="input-wrap">
+                <input id="salePrice" type="text" inputmode="numeric" pattern="[0-9,]+" required placeholder="판매금액 입력" />
+                <span class="unit">원</span>
+              </div>
+            </div>
+
+            
+            <div class="field">
+              <label for="productCost">상품원가</label>
+              <div class="input-wrap">
+                <input id="productCost" type="text" inputmode="numeric" pattern="[0-9,]+" value="0" required readonly />
+                <span class="unit">원</span>
+              </div>
+            </div>
+
+            
+            <div class="field">
+              <label for="feeRate">수수료율</label>
+              <div class="input-wrap">
+                <input id="feeRate" type="number" inputmode="decimal" step="0.1" value="3.5" min="0" max="100" required />
+                <span class="unit">%</span>
+              </div>
+            </div>
+
+            
+            <div class="field">
+              <label for="shippingCost">배송비</label>
+              <div class="input-wrap">
+                <input id="shippingCost" type="number" inputmode="numeric" value="0" min="0" step="1" required />
+                <span class="unit">원</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            
+            <button class="primary-btn" type="button" id="calcBtn">계산하기</button>
+
+            
+            <button class="ghost-btn" type="button" id="resetBtn">초기화</button>
+          </div>
+        </section>
+
+        
+        <aside class="panel result-panel">
+          <div class="panel-head">
+            <div>
+              <h2>결과값</h2>
+              <p class="desc">오른쪽에는 선택한 모델의 계산 결과만 크게 보여줍니다.</p>
+            </div>
+          </div>
+
+          <div class="model-box">
+            <span>선택 모델</span>
+            <strong id="modelResult">예: ABC-1234</strong>
+          </div>
+
+          <div class="result-main">
+            <div class="result-label">예상 마진</div>
+            <div class="net-amount" id="marginResult">96,500원</div>
+          </div>
+
+          <div class="result-list">
+            <div class="result-row">
+              <span>판매 금액</span>
+              <strong id="saleResult">100,000원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>플랫폼 수수료</span>
+              <strong id="feeResult">3,500원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>배송비</span>
+              <strong id="shippingResult">0원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>상품 원가</span>
+              <strong id="costResult">0원</strong>
+            </div>
+
+            <div class="result-row highlight">
+              <span>예상 실수령액</span>
+              <strong id="netAmount">96,500원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>마진율</span>
+              <strong id="marginRateResult">-</strong>
+            </div>
+
+            <div class="margin-grade waiting" id="marginGrade" aria-live="polite">
+              판매금액을 입력하면 추천 여부를 알려드립니다.
+            </div>
+          </div>
+
+          <div class="history price-guide">
+            <h3>마진율별 권장 판매가</h3>
+            <div class="price-guide-list">
+              <div><span>5% 마진</span><strong id="targetPrice5">0원</strong></div>
+              <div class="recommended"><span>8% 마진</span><strong id="targetPrice8">0원</strong></div>
+              <div><span>10% 마진</span><strong id="targetPrice10">0원</strong></div>
+            </div>
+            <p class="price-guide-note">상품원가·배송비·수수료를 반영해 1,000원 단위로 올림한 판매가입니다.</p>
+          </div>
+        </aside>
+      </section>
+    </section>
+
+    
+    <section id="rentPage" class="page">
+      <section class="layout rent-view">
+        
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>임대 정보입력</h2>
+            </div>
+
+            <span class="badge rent">임대용</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="field full model-picker rent-model-picker">
+              <label for="rentModelName">모델명</label>
+              <div class="input-wrap model-input-wrap">
+                <input id="rentModelName" type="text" placeholder="임대 모델명을 입력하거나 선택하세요" maxlength="100" autocomplete="off" />
+                <button class="model-toggle rent-model-toggle" id="rentModelToggleBtn" type="button" aria-label="임대 모델 목록 열기" aria-expanded="false">▾</button>
+              </div>
+              <div class="model-dropdown" id="rentModelDropdown" role="listbox" aria-label="임대 모델 목록"></div>
+              <p class="field-status" id="rentModelLookupStatus">가격표 파일 연결을 준비하고 있습니다.</p>
+            </div>
+
+            <div class="field">
+              <label for="rentYears">임대 년수</label>
+              <div class="input-wrap">
+                <select id="rentYears">
+                  <option value="4" selected>4년</option>
+                  <option value="3">3년</option>
+                  <option value="2">2년</option>
+                  <option value="1">1년</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>제품 상태</label>
+              <div class="choice-row" role="radiogroup" aria-label="제품 상태">
+                <label class="choice-card">
+                  <input type="radio" name="rentCondition" value="new" checked />
+                  <span>신품</span>
+                </label>
+                <label class="choice-card">
+                  <input type="radio" name="rentCondition" value="used" />
+                  <span>중고</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field full">
+              <label>추가 선택사항</label>
+              <div class="option-grid">
+                <label class="option-card">
+                  <input id="faxKit" type="checkbox" />
+                  <span><strong>팩스키트</strong><small>월 5,000원 추가</small></span>
+                </label>
+                <label class="option-card">
+                  <input id="wirelessKit" type="checkbox" />
+                  <span><strong>무선키트</strong><small>월 5,000원 추가</small></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="blackCopies">월 흑백 출력 매수</label>
+              <div class="input-wrap">
+                <input id="blackCopies" type="number" inputmode="numeric" value="0" min="0" step="1" required />
+                <span class="unit">매</span>
+              </div>
+            </div>
+
+            <div class="field" id="colorCopiesField">
+              <label for="colorCopies">월 컬러 출력 매수</label>
+              <div class="input-wrap">
+                <input id="colorCopies" type="number" inputmode="numeric" value="0" min="0" step="1" required />
+                <span class="unit">매</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="primary-btn rent-btn" type="button" id="rentCalcBtn">임대 계산하기</button>
+            <button class="ghost-btn" type="button" id="rentResetBtn">초기화</button>
+          </div>
+        </section>
+
+        
+        <aside class="panel result-panel">
+          <div class="panel-head">
+            <div>
+              <h2>임대 결과값</h2>
+              <p class="desc">임대 기간 기준 예상 매출과 회수 금액을 확인합니다.</p>
+            </div>
+          </div>
+
+          <div class="model-box rent">
+            <span>선택 모델</span>
+            <strong id="rentModelResult">모델을 선택해 주세요</strong>
+            <small id="rentModelDetail">복합기 종류와 속도가 표시됩니다.</small>
+          </div>
+
+          <div class="result-main">
+            <div class="result-label">최종 월 임대료 <span class="vat-note">VAT 별도</span></div>
+            <div class="net-amount" id="rentMonthlyTotal">0원</div>
+          </div>
+
+          <div class="result-list">
+            <div class="result-row">
+              <span>기본 임대료</span>
+              <strong id="rentBaseResult">0원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>신품/중고 조정</span>
+              <strong id="rentConditionResult">0원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>기간 추가금</span>
+              <strong id="rentPeriodResult">0원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>옵션 추가금</span>
+              <strong id="rentOptionResult">0원</strong>
+            </div>
+
+            <div class="result-row">
+              <span>장당 사용료</span>
+              <strong id="rentUsageResult">0원</strong>
+            </div>
+
+            <div class="result-row highlight">
+              <span>계약기간 총 임대료</span>
+              <strong id="rentContractTotal">0원</strong>
+            </div>
+          </div>
+
+          <div class="deposit-box">
+            <span>설치 전 납부 보증금</span>
+            <strong id="rentDepositResult">0원</strong>
+            <small>월 임대료에 포함되지 않으며 계약 만료 시 100% 반환됩니다.</small>
+          </div>
+
+          <div class="history">
+            <div class="history-head">
+              <h3>최근 임대 계산 기록</h3><small>이 계정의 현재 브라우저에 저장됩니다.</small>
+              <button class="history-clear" id="clearRentHistoryBtn" type="button">전체 삭제</button>
+            </div>
+            <div class="history-list" id="rentHistoryList">
+              <p class="empty">아직 임대 계산 기록이 없습니다.</p>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </section>
+  </main>
+
+  <div class="price-modal" id="priceTableModal" aria-hidden="true">
+    <div class="price-modal-backdrop" data-price-modal-close></div>
+    <section class="price-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="priceTableTitle">
+      <header class="price-modal-head">
+        <div>
+          <h2 id="priceTableTitle">가격표</h2>
+          <p id="priceTableSummary">가격표 데이터를 불러오는 중입니다.</p>
+        </div>
+        
+        <div class="price-view-tabs" role="tablist" aria-label="가격표 종류">
+          <button class="price-view-tab active" type="button" role="tab" aria-selected="true" data-view="printer">프린터</button>
+          <button class="price-view-tab" type="button" role="tab" aria-selected="false" data-view="consumable">소모품</button>
+          <button class="price-view-tab" type="button" role="tab" aria-selected="false" data-view="filter">필터</button>
+        </div>
+        <label class="price-table-search">
+          <span class="sr-only">가격표 검색</span>
+          <input id="priceTableSearch" type="search" placeholder="모델명, 구분 또는 대상 프린터 검색" autocomplete="off" />
+        </label>
+        <button class="price-modal-close" id="priceTableCloseBtn" type="button" aria-label="가격표 닫기">×</button>
+      </header>
+      <div class="price-table-scroll">
+        <table class="printer-price-table" id="printerPriceTable">
+          <thead>
+            <tr>
+              <th>구분 <button class="column-filter-btn" type="button" data-filter="category" data-label="구분" aria-label="구분 필터" aria-expanded="false">▾</button></th>
+              <th>모델명 <button class="column-filter-btn" type="button" data-filter="model" data-label="모델명" aria-label="모델명 필터" aria-expanded="false">▾</button></th>
+              <th>주요 기능 <button class="column-filter-btn" type="button" data-filter="feature" data-label="주요 기능" aria-label="주요 기능 필터" aria-expanded="false">▾</button></th>
+              <th>구분2 <button class="column-filter-btn" type="button" data-filter="productType" data-label="구분2" aria-label="구분2 필터" aria-expanded="false">▾</button></th>
+              <th>판매경로 <button class="column-filter-btn" type="button" data-filter="salesRoute" data-label="판매경로" aria-label="판매경로 필터" aria-expanded="false">▾</button></th>
+              <th class="price-heading">출고가 <button class="column-filter-btn" type="button" data-filter="releasePriceExVat" data-label="출고가" aria-label="출고가 필터" aria-expanded="false">▾</button><small class="vat-exclusive-label">(V.A.T별도)</small></th>
+              <th class="price-heading">구매가 12%<small class="vat-exclusive-label">(V.A.T포함)</small></th>
+              <th class="price-heading">구매가 20%<small class="vat-exclusive-label">(V.A.T포함)</small></th>
+              <th class="price-heading">적용 원가<small class="vat-exclusive-label">(계산에 쓰는 값)</small></th>
+            </tr>
+          </thead>
+          <tbody id="printerPriceTableBody">
+            <tr><td colspan="9" class="price-table-empty">데이터를 불러오는 중입니다.</td></tr>
+          </tbody>
+        </table>
+
+        
+        <table class="printer-price-table" id="consumablePriceTable" hidden>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>모델명</th>
+              <th>현황</th>
+              <th>색상</th>
+              <th>사용매수</th>
+              <th>대상 프린터</th>
+              <th class="price-heading">출고가<small class="vat-exclusive-label">(V.A.T포함)</small></th>
+              <th class="price-heading">적용 원가<small class="vat-exclusive-label">(계산에 쓰는 값)</small></th>
+            </tr>
+          </thead>
+          <tbody id="consumablePriceTableBody">
+            <tr><td colspan="8" class="price-table-empty">데이터를 불러오는 중입니다.</td></tr>
+          </tbody>
+        </table>
+
+        
+        <table class="printer-price-table" id="filterPriceTable" hidden>
+          <thead>
+            <tr>
+              <th>품명</th>
+              <th>재고</th>
+              <th class="price-heading">매입가</th>
+              <th class="price-heading">임시책정금액</th>
+            </tr>
+          </thead>
+          <tbody id="filterPriceTableBody">
+            <tr><td colspan="4" class="price-table-empty">데이터를 불러오는 중입니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="column-filter-popover" id="columnFilterPopover" hidden>
+        <label id="columnFilterLabel">열 필터</label>
+        <div class="column-filter-options" id="columnFilterOptions"></div>
+        <button id="columnFilterClearBtn" type="button">초기화</button>
+      </div>
+    </section>
+  </div>
+
+  
+  <script src="/calculator/content/script"></script>
+</body>
+</html>

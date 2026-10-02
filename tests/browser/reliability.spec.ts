@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { loginForTest } from './auth-helper';
+import { assignTestAdministrator, loginForTest } from './auth-helper';
 
 test('lost responses can be recovered after reload; stale edits and trash work on mobile', async ({ page, request }) => {
   const account = await loginForTest(page.request);
@@ -53,6 +53,7 @@ test('lost responses can be recovered after reload; stale edits and trash work o
   await page.locator(`#item-${id}`).getByRole('button', { name: '삭제', exact: true }).click();
   await expect(page.locator(`#item-${id}`)).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
+  assignTestAdministrator(account.username);
   await page.goto('/trash');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   const entry = page.locator('.trash-entry').filter({ hasText: 'E2E-복구검증' });
