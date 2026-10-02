@@ -30,7 +30,7 @@
         <button class="price-table-btn" id="priceTableBtn" type="button">가격표</button>
 
         
-        <button class="mode-btn" id="modeBtn" type="button">🌙 다크모드</button>
+        <button class="mode-btn" id="apiSettingsBtn" type="button">API 연결 설정</button>
       </div>
     </header>
 
@@ -104,7 +104,7 @@
             <div class="field">
               <label for="feeRate">수수료율</label>
               <div class="input-wrap">
-                <input id="feeRate" type="number" inputmode="decimal" step="0.1" value="3.5" min="0" max="100" required />
+                <input id="feeRate" type="number" inputmode="decimal" step="0.0001" value="3.5" min="0" max="100" required />
                 <span class="unit">%</span>
               </div>
             </div>
@@ -119,6 +119,12 @@
             </div>
           </div>
 
+          <div class="api-fee-controls" id="apiFeeControls">
+            <div class="field"><label for="apiFeeMode">수수료 적용</label><select id="apiFeeMode"><option value="auto">API 자동 적용</option><option value="manual">직접 입력</option></select></div>
+            <div class="field"><label for="apiFeeProduct">수수료 기준 상품</label><select id="apiFeeProduct"><option value="">선택 모델과 자동 연결</option></select></div>
+            <p id="apiFeeStatus" class="field-status" aria-live="polite">회사 API를 연결하면 상품별 수수료를 자동 적용합니다.</p>
+            <p class="api-fee-note">조회 기간의 상품 수수료를 기준으로 추정합니다. 판매 조건·유입 경로에 따라 달라질 수 있으며 월 이용료·광고비·로켓그로스 비용은 별도입니다.</p>
+          </div>
           <div class="button-row">
             
             <button class="primary-btn" type="button" id="calcBtn">계산하기</button>
@@ -438,6 +444,25 @@
   </div>
 
   
+  <dialog id="apiSettingsDialog" class="api-settings-dialog" aria-labelledby="apiSettingsTitle">
+    <header class="api-dialog-head"><h2 id="apiSettingsTitle">회사 API 연결</h2><button id="apiSettingsClose" class="ghost-btn" type="button" aria-label="API 설정 닫기">닫기</button></header>
+    <p id="apiAdminNotice" role="status">연결 상태를 확인하고 있습니다.</p>
+    <form class="api-provider" data-api-platform="smartstore" autocomplete="off">
+  <h3>네이버 스마트스토어</h3><p class="api-connection-status">연결 상태 확인 중</p><p class="api-fee-note">네이버 커머스API 키와 정산 조회 권한이 필요합니다.</p>
+  <div class="api-credentials" hidden><label>애플리케이션 ID<input type="password" name="clientId" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label><label>애플리케이션 시크릿<input type="password" name="clientSecret" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label></div>
+  <div class="api-date-range"><label>조회 시작일<input type="date" name="from" required /></label><label>조회 종료일<input type="date" name="to" required /></label></div>
+  <div class="api-actions"><button class="primary-btn" type="submit" data-api-save hidden>저장하고 연결 확인</button><button class="ghost-btn" type="button" data-api-refresh disabled>수수료 새로고침</button><button class="ghost-btn" type="button" data-api-disconnect hidden>연결 해제</button></div>
+  <p class="api-action-status" role="status"></p>
+</form><form class="api-provider" data-api-platform="coupang" autocomplete="off">
+  <h3>쿠팡</h3><p class="api-connection-status">연결 상태 확인 중</p><p class="api-fee-note">쿠팡 WING Open API 키와 판매자 ID를 입력하세요.</p>
+  <div class="api-credentials" hidden><label>Access Key<input type="password" name="accessKey" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label><label>Secret Key<input type="password" name="secretKey" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label><label>판매자 ID (Vendor ID)<input type="text" name="vendorId" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label></div>
+  <div class="api-date-range"><label>조회 시작일<input type="date" name="from" required /></label><label>조회 종료일<input type="date" name="to" required /></label></div>
+  <div class="api-actions"><button class="primary-btn" type="submit" data-api-save hidden>저장하고 연결 확인</button><button class="ghost-btn" type="button" data-api-refresh disabled>수수료 새로고침</button><button class="ghost-btn" type="button" data-api-disconnect hidden>연결 해제</button></div>
+  <p class="api-action-status" role="status"></p>
+</form>
+    <p class="api-fee-note">최대 31일 범위로 조회합니다. 네이버는 정산 기준일, 쿠팡은 매출인식일 기준입니다. API 업체에서 서버 IP 등록을 요구하면 허용 IP 설정을 확인해주세요.</p>
+  </dialog>
   <script src="/calculator/content/script"></script>
+  <script src="/calculator/content/api-settings"></script>
 </body>
 </html>

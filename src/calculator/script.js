@@ -15,7 +15,7 @@ const calculatorStorage = {
   - 판매용 계산
   - 임대용 계산
   - 최근 계산 기록 저장
-  - 라이트모드 / 다크모드 전환
+  - 회사 API 수수료 연동
 ========================================================= */
 
 
@@ -223,6 +223,7 @@ function loadStore(storeKey) {
     btn.classList.toggle("active", btn.dataset.store === storeKey);
   });
 
+  if (typeof updateApiFee === "function") updateApiFee();
   calculateSale(false);
 }
 
@@ -416,6 +417,7 @@ function toggleModelDropdown() {
 
 function applyProductFromModel() {
   const model = saleFields.modelName.value.trim();
+  if (typeof updateApiFee === "function") updateApiFee();
   if (!model) {
     saleFields.productCost.value = "0";
     setLookupStatus(`${saleProducts.length.toLocaleString("ko-KR")}개 모델에서 검색할 수 있습니다.`);
@@ -1061,40 +1063,6 @@ function switchPage(page) {
 
 
 /* =========================================================
-  12. 라이트모드 / 다크모드 설정
-  ---------------------------------------------------------
-  themeMode 값을 localStorage에 저장해서 다음에 열어도 유지됩니다.
-========================================================= */
-function setupMode() {
-  const savedMode = calculatorStorage.getItem("themeMode");
-
-  if (savedMode === "dark") {
-    document.body.classList.add("dark");
-  }
-
-  updateModeText();
-
-  $("modeBtn").addEventListener("click", () => {
-    document.body.classList.toggle("dark");
-
-    calculatorStorage.setItem(
-      "themeMode",
-      document.body.classList.contains("dark") ? "dark" : "light"
-    );
-
-    updateModeText();
-  });
-}
-
-/* 다크모드 상태에 따라 버튼 문구를 바꿉니다. */
-function updateModeText() {
-  $("modeBtn").textContent = document.body.classList.contains("dark")
-    ? "☀️ 라이트모드"
-    : "🌙 다크모드";
-}
-
-
-/* =========================================================
   13. 클릭/입력 이벤트 연결
   ---------------------------------------------------------
   버튼 클릭이나 입력값 변경이 발생했을 때 어떤 함수를 실행할지 정합니다.
@@ -1212,7 +1180,7 @@ document.addEventListener("keydown", (event) => {
   페이지를 열자마자 날짜, 모드, 기록, 계산값을 세팅합니다.
 ========================================================= */
 today();
-setupMode();
+calculatorStorage.removeItem("themeMode");
 renderRentHistory();
 loadStore(currentStore);
 calculateRent(false);

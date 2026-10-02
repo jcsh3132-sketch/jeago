@@ -47,6 +47,7 @@ async function initialize() {
         if (statements.length) await upgrade.batch(statements);
       }
       await upgrade.batch([
+        "CREATE TABLE IF NOT EXISTS calculator_api_connection (platform TEXT PRIMARY KEY CHECK(platform IN ('smartstore','coupang')),credentials TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_by TEXT NOT NULL,fees TEXT NOT NULL DEFAULT '[]',synced_at INTEGER NOT NULL DEFAULT 0,attempted_at INTEGER NOT NULL DEFAULT 0,last_error TEXT NOT NULL DEFAULT '',sync_id TEXT,sync_until INTEGER NOT NULL DEFAULT 0,range_from TEXT NOT NULL DEFAULT '',range_to TEXT NOT NULL DEFAULT '')",
         'CREATE TABLE IF NOT EXISTS transaction_edit_audit (id TEXT PRIMARY KEY,transaction_id INTEGER NOT NULL,actor_id TEXT NOT NULL,actor_name TEXT NOT NULL,before_data TEXT NOT NULL,after_data TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS leave_employee (id TEXT PRIMARY KEY,name TEXT NOT NULL,position TEXT NOT NULL,hired TEXT NOT NULL,special REAL NOT NULL DEFAULT 0,entries TEXT NOT NULL DEFAULT \'[]\',version INTEGER NOT NULL DEFAULT 0,updated_by TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
         'CREATE TABLE IF NOT EXISTS leave_request (id TEXT PRIMARY KEY,payload TEXT NOT NULL,employee_id TEXT NOT NULL,actor_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',

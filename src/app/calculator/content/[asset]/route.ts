@@ -10,6 +10,7 @@ const assets: Record<string, [string, string]> = {
   index: ['index.html', 'text/html; charset=utf-8'],
   style: ['style.css', 'text/css; charset=utf-8'],
   script: ['script.js', 'text/javascript; charset=utf-8'],
+  'api-settings': ['api-settings.js', 'text/javascript; charset=utf-8'],
 };
 export async function GET(request: NextRequest, { params }: { params: Promise<{ asset: string }> }) {
   const user = await sessionUser(request.cookies.get(SESSION_COOKIE)?.value);
