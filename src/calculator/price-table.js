@@ -9,6 +9,19 @@
   const cellValue = (row, column) => (row.cells[column]?.textContent || '').trim();
   function apply(table) {
     const rules = filters.get(table.id), rows = [...table.tBodies[0].rows];
+    if (table.id === 'printerPriceTable' || table.id === 'consumablePriceTable') {
+      for (const row of rows) {
+        const cell = row.cells[0];
+        if (!cell || row.querySelector('.price-table-empty') || cell.querySelector('.printer-category')) continue;
+        const category = document.createElement('span'), value = cell.textContent.trim();
+        category.className = 'printer-category'; category.textContent = value;
+        if (/컬러/i.test(value)) category.classList.add('category-color');
+        else if (/흑백|모노/i.test(value)) category.classList.add('category-mono');
+        else if (/잉크/i.test(value)) category.classList.add('category-ink');
+        else if (/렌탈/i.test(value)) category.classList.add('category-rental');
+        cell.replaceChildren(category);
+      }
+    }
     for (const row of rows) row.hidden = !!rules && [...rules].some(([column, selected]) => selected.size > 0 && !selected.has(cellValue(row, column)));
     if (!table.hidden && rules && [...rules.values()].some(selected => selected.size)) {
       const count = rows.filter(row => !row.hidden && !row.querySelector('.price-table-empty')).length;
