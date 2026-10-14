@@ -63,6 +63,13 @@ test('four seller connections stay isolated across save, refresh, disconnect and
   await saveCalculatorCredentials(token,{...cp,account:2,accessKey:'account-two',secretKey:'secret-two',vendorId:'A00022222'});
   await saveCalculatorCredentials(token,{...nv,account:1});
   await saveCalculatorCredentials(token,{...nv,account:2,clientId:'naver-two'});
+  const beforeInvalid = (await db.execute("SELECT credentials,revision FROM calculator_api_connection WHERE platform='smartstore' AND account=1")).rows[0];
+  const shortSecret = nv.clientSecret.slice(0,-2);
+  await assert.rejects(saveCalculatorCredentials(token,{...nv,account:1,revision:1,clientSecret:shortSecret}), error => error instanceof AuthError && error.message.includes('27자리') && error.message.includes('29자리') && !error.message.includes(shortSecret));
+  await assert.rejects(saveCalculatorCredentials(token,{...nv,account:1,revision:1,clientSecret:'x'.repeat(29)}), /형식이 올바르지/);
+  assert.deepEqual((await db.execute("SELECT credentials,revision FROM calculator_api_connection WHERE platform='smartstore' AND account=1")).rows[0],beforeInvalid);
+  await saveCalculatorCredentials(token,{platform:'smartstore',account:1,revision:1,clientId:'',clientSecret:''});
+  assert.equal(decryptCredentials('smartstore',String((await db.execute("SELECT credentials FROM calculator_api_connection WHERE platform='smartstore' AND account=1")).rows[0].credentials)).clientSecret,nv.clientSecret);
   const state=await calculatorApiState(token);assert.equal(state.platforms.length,4);assert(state.platforms.every(c=>c.configured));
   assert(!JSON.stringify(state).includes('secret-two'));
   const saved=(await db.execute("SELECT credentials FROM calculator_api_connection WHERE platform='coupang' AND account=2")).rows[0];

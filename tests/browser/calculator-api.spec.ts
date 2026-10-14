@@ -20,6 +20,15 @@ test('company API settings replace dark mode, hide secrets, and share automatic 
   await expect(frame.locator('[data-api-platform="coupang"]')).toHaveCount(2);
   await expect(frame.locator('[data-api-platform="smartstore"]')).toHaveCount(2);
   await expect(cp.getByRole('button', { name: '저장하고 연결 확인' })).toBeVisible();
+  const nv = frame.locator('[data-api-platform="smartstore"][data-api-account="1"]');
+  await nv.locator('input[name="clientId"]').fill('browser-naver');
+  await nv.locator('input[name="clientSecret"]').fill('$2a$10$abcdefghijklmnopqrst');
+  await nv.getByRole('button', { name: '저장하고 연결 확인' }).click();
+  await expect(nv.locator('.api-action-status')).toContainText('27자리입니다. 시크릿은 29자리여야 합니다.');
+  await expect(nv.locator('.api-action-status')).not.toContainText('$2a$10$abcdefghijklmnopqrst');
+  await expect(nv.locator('input[name="clientSecret"]')).toHaveValue('$2a$10$abcdefghijklmnopqrst');
+  await nv.locator('input[name="clientId"]').fill('');
+  await nv.locator('input[name="clientSecret"]').fill('');
   await page.screenshot({ path: 'work/calculator-api-admin-desktop.png', fullPage: true });
   const saved = await page.request.post('/api/calculator/connections', { headers: origin, data: { action: 'save', platform: 'coupang', revision: 0, accessKey: 'browser-access', secretKey: 'browser-private-secret', vendorId: 'A00012345' } });
   expect(saved.ok()).toBe(true);

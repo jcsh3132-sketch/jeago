@@ -69,9 +69,13 @@ export async function saveCalculatorCredentials(token: string | undefined, input
     if (input[key] !== undefined && typeof input[key] !== 'string') throw new AuthError('API 키 형식을 확인해주세요.');
     const value = typeof input[key] === 'string' ? input[key].trim() : '';
     if (value) next[key] = value;
+    if (platform === 'smartstore' && key === 'clientSecret' && !next[key]) throw new AuthError('네이버 커머스API 애플리케이션 시크릿을 입력해주세요.');
     if (!next[key] || next[key]!.length > 200 || /[\r\n]/.test(next[key]!)) throw new AuthError('필요한 API 키와 판매자 정보를 모두 입력해주세요.');
   }
-  if (platform === 'smartstore' && !/^\$2[aby]\$(0[4-9]|1[0-4])\$[./A-Za-z0-9]{22}$/.test(next.clientSecret!)) throw new AuthError('네이버 커머스API 애플리케이션 시크릿을 입력해주세요.');
+  if (platform === 'smartstore' && !/^\$2[aby]\$(0[4-9]|1[0-4])\$[./A-Za-z0-9]{22}$/.test(next.clientSecret!)) {
+    const detail = next.clientSecret!.length === 29 ? '입력한 시크릿의 형식이 올바르지 않습니다.' : `입력한 시크릿은 ${next.clientSecret!.length}자리입니다. 시크릿은 29자리여야 합니다.`;
+    throw new AuthError(`${detail} 네이버 커머스API센터에서 같은 애플리케이션의 ID와 시크릿 전체를 다시 복사해주세요.`);
+  }
   if (platform === 'coupang' && (!/^[A-Za-z0-9_-]+$/.test(next.accessKey!) || !/^A\d{8}$/.test(next.vendorId!))) throw new AuthError('쿠팡 Access Key와 판매자 ID(A로 시작하는 9자리)를 확인해주세요.');
   // A changed principal must never reuse the other principal's saved secret.
   if (prior) {

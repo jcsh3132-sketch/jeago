@@ -12,7 +12,7 @@
     <header class="api-dialog-head"><h2 id="apiSettingsTitle">회사 API 연결</h2><button id="apiSettingsClose" class="ghost-btn" type="button" aria-label="API 설정 닫기">닫기</button></header>
     <p id="apiAdminNotice" role="status">연결 상태를 확인하고 있습니다.</p>
     <form class="api-provider" data-api-platform="smartstore" autocomplete="off">
-  <h3>네이버 스마트스토어</h3><p class="api-connection-status">연결 상태 확인 중</p><p class="api-fee-note">네이버 커머스API 키와 정산 조회 권한이 필요합니다.</p>
+  <h3>네이버 스마트스토어</h3><p class="api-connection-status">연결 상태 확인 중</p><p class="api-fee-note">네이버 커머스API센터에서 같은 애플리케이션의 ID와 29자리 시크릿 전체를 복사하세요. 정산 조회 권한이 필요합니다.</p>
   <div class="api-credentials" hidden><label>애플리케이션 ID<input type="password" name="clientId" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label><label>애플리케이션 시크릿<input type="password" name="clientSecret" maxlength="200" autocomplete="off" placeholder="새 키 입력 · 비워두면 기존 값 유지" /></label></div>
   <div class="api-date-range"><label>조회 시작일<input type="date" name="from" required /></label><label>조회 종료일<input type="date" name="to" required /></label></div>
   <div class="api-actions"><button class="primary-btn" type="submit" data-api-save hidden>저장하고 연결 확인</button><button class="ghost-btn" type="button" data-api-refresh disabled>수수료 새로고침</button><button class="ghost-btn" type="button" data-api-disconnect hidden>연결 해제</button></div>
