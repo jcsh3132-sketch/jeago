@@ -1,18 +1,22 @@
 # Sales and rental calculator
 
-Adapted from the user-provided `best.zip` (2026-10-02). The HTML/CSS/JS preserve its sale-margin formula, rental pricing, model matching, price tables and rental history. The calculator runs in a same-origin frame to isolate its stylesheet from the inventory app. API connection settings replace dark mode.
+The live calculator is proxied from the separately deployed server configured by `CALCULATOR_BASE_URL`, using the server-only `CALCULATOR_API_KEY` in `X-Calculator-Key`. The calculator runs in a same-origin frame. Updating and deploying the calculator server updates Jeago's calculator on the next reload without a Jeago redeployment. The old `index.html`, `style.css`, `script.js` and `catalog.json` are legacy reference files and are excluded from calculator deployment traces.
 
 All content and catalog routes require the inventory session and use private/no-store responses. Browser preferences and rental history are scoped to the authenticated account ID. Price data is never placed under `public/`.
 
-`catalog.json` is a generated snapshot of the supplied August base workbook and September update workbook. Source SHA-256 hashes are included. Excel imports preserve cached values, highlighted toner/consumable rules, VAT distinctions and the supplied rounding behavior. They do not change source workbooks or inventory data.
+The upstream HTML, stylesheet, script, sale products and rental products are fetched with no cache. Product JSON is passed through without interpreting fields. HTML integration rewrites the style/script URLs and injects `window.CALCULATOR_API` before upstream scripts. The upstream JavaScript is delivered unchanged; account-scoped local storage is provided by the iframe bootstrap. `api-settings.html`, `api-settings.js` and `integration.css` preserve Jeago's company marketplace settings UI.
 
-To replace price data, place the authorized workbooks in a local folder and run:
+The following routes require a Jeago login: `/calculator/content` and `/calculator/content/index` proxy `/`; `style`/`style.css` and `script`/`script.js` proxy the corresponding assets; `sale-products` and `rent-products` proxy their `/api/` endpoints. POST `cost-discounts` requires the same-origin JSON request and forwards the body, upstream status and detail response to `/api/cost-discounts`. Unknown paths and redirects are rejected. Browser cookies are never forwarded upstream. Network failures produce a safe 502 message without exposing credentials. All responses are private/no-store.
+
+The historical workbook importer remains available for reference:
 
 ```
 python scripts/import-calculator.py <workbook-folder> src/calculator/catalog.json
 ```
 
-Requires Python and openpyxl 3.1.5 only for importing, not on Vercel. Review and redeploy the generated catalog when prices change. Original archives, virtual environments, repositories and workbooks are not deployed.
+This importer no longer controls live calculator prices. Make pricing, formula and layout changes in the separate calculator project and deploy that project. The current contract exposes only the paths listed above; new upstream asset/API paths require adding an explicit proxy mapping.
+
+Tests: `npm test` uses a fake upstream and an isolated database. Browser calculator integration checks can be run with the private environment file: `node --env-file=.env.calculator.local node_modules/@playwright/test/cli.js test tests/browser/calculator.spec.ts tests/browser/calculator-api.spec.ts`. These use read-only requests to the configured calculator; provider credentials are synthetic and stored only in the disposable browser test DB. They do not write upstream cost discounts.
 
 ## Company marketplace connections
 

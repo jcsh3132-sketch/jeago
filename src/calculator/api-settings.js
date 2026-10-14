@@ -1,10 +1,22 @@
 // Company credentials stay on the server. This module only receives product fees.
+const integrationTemplate = document.getElementById('jeagoApiIntegration');
+if (integrationTemplate) {
+  const content = integrationTemplate.content;
+  document.querySelector('.top-actions').append(content.querySelector('#apiSettingsBtn'));
+  document.getElementById('calcBtn').closest('.button-row').before(content.querySelector('#apiFeeControls'));
+  document.body.append(content.querySelector('#apiSettingsDialog'));
+  const themeButton = document.getElementById('modeBtn'); if (themeButton) themeButton.hidden = true;
+  integrationTemplate.remove();
+}
 const apiState = { canManage: false, platforms: [] };
 let apiMode = 'auto';
 let apiFeeSelection = '';
 let apiModel = '';
 const connectionFor = (platform) => apiState.platforms.find(c => c.platform === platform);
 const apiSupported = () => currentStore === 'smartstore' || currentStore === 'coupang';
+const manualFee = () => typeof feeRateKey === 'function'
+  ? storeFeeRates[feeRateKey()] ?? stores[currentStore].rates?.[currentCategory()] ?? stores[currentStore].rate
+  : storeFeeRates[currentStore] ?? stores[currentStore].rate;
 const apiDate = (offset = 0) => new Date(Date.now() + 9 * 3600000 + offset * 86400000).toISOString().slice(0, 10);
 
 async function apiRequest(input) {
@@ -51,7 +63,7 @@ function updateApiFee() {
     status = `${selected.source} · ${selected.rate}% · ${selected.samples}건 기준 · ${c.rangeFrom} ~ ${c.rangeTo}`;
     if (Date.now() - c.syncedAt > 24 * 3600000) status += ' · 이전 조회값(갱신 필요)';
   } else {
-    saleFields.feeRate.value = storeFeeRates[currentStore] ?? stores[currentStore].rate;
+    saleFields.feeRate.value = manualFee();
     status = !c?.configured ? '회사 API를 연결하면 상품별 수수료를 자동 적용합니다. 현재는 직접 입력 기준입니다.'
       : matches.length > 1 ? '일치하는 API 상품이 여러 개입니다. 수수료 기준 상품을 선택하거나 직접 입력해주세요.'
       : '이 모델의 조회 수수료가 없습니다. API 상품을 선택하거나 수수료율을 직접 입력해주세요.';
@@ -69,7 +81,7 @@ function renderApiSettings() {
     const disconnect = form.querySelector('[data-api-disconnect]');
     disconnect.hidden = !apiState.canManage || !c?.configured;
     form.querySelector('[data-api-refresh]').disabled = !c?.configured || !!c?.syncing;
-    const synced = c?.syncedAt ? new Date(c.syncedAt).toLocaleString('ko-KR') : '';
+    const synced = c?.syncedAt ? new Date(c.syncedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
     form.querySelector('.api-connection-status').textContent = c?.configured ? `키 등록됨 · ${c.fees.length}개 상품${synced ? ' · 조회 ' + synced : ' · 수수료 조회 필요'}${c.syncing ? ' · 회사 PC 조회 대기/진행 중' : ''}${c.lastError ? ' · ' + c.lastError : ''}` : '연결된 회사 API가 없습니다.';
   }
 }
@@ -118,10 +130,13 @@ function setupApiSettings() {
       catch (error) { form.querySelector('.api-action-status').textContent = error.message; }
     });
   }
-  $('apiFeeMode').addEventListener('change', event => { apiMode = event.target.value; if (apiMode === 'manual') saleFields.feeRate.value = storeFeeRates[currentStore] ?? stores[currentStore].rate; updateApiFee(); });
+  $('apiFeeMode').addEventListener('change', event => { apiMode = event.target.value; if (apiMode === 'manual') saleFields.feeRate.value = manualFee(); updateApiFee(); });
   $('apiFeeProduct').addEventListener('change', event => { apiFeeSelection = event.target.value; updateApiFee(); });
   saleFields.feeRate.addEventListener('input', () => { if (apiSupported()) { apiMode = 'manual'; $('apiFeeMode').value = 'manual'; updateApiFee(); } });
   saleFields.modelName.addEventListener('input', updateApiFee);
+  saleFields.modelName.addEventListener('change', updateApiFee);
+  saleFields.modelName.addEventListener('blur', updateApiFee);
+  document.addEventListener('click', event => { if (event.target.closest('[data-store],#modelDropdown')) queueMicrotask(updateApiFee); });
   apiRequest().then(async () => {
     for (const c of apiState.platforms) if (c.shouldRefresh && !c.syncing) await refreshPlatform(c.platform, true);
   }).catch(error => { $('apiAdminNotice').textContent = error.message; });

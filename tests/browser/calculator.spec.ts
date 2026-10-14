@@ -25,29 +25,28 @@ test('calculator requires login, preserves sales/rental calculations, and works 
   const saleResponse = await page.request.get('/calculator/content/sale-products');
   expect(saleResponse.headers()['cache-control']).toContain('no-store');
   const sale = await saleResponse.json();
-  expect([sale.printerCount, sale.consumableCount, sale.filterCount]).toEqual([88, 151, 14]);
-  expect(sale.priceUpdate.label).toBe('2026년 9월');
+  expect(sale.products.length).toBeGreaterThan(0);
   const product = sale.products.find((p: { kind: string; status: string; productCost: number }) => p.kind === 'printer' && p.status === 'ok' && p.productCost > 0);
   await frame.locator('#modelName').fill(product.model);
   await frame.locator('#modelName').press('Tab');
   await expect(frame.locator('#productCost')).toHaveValue(product.productCost.toLocaleString('ko-KR'));
   await frame.locator('#salePrice').fill('1000000');
   await frame.locator('#shippingCost').fill('3000');
-  for (const [store, rate] of [['smartstore', 3.5], ['coupang', 10], ['gmarket', 13], ['eleven', 12], ['school', 5]] as const) {
+  for (const [store, rate] of [['smartstore', 3.5], ['coupang', 5.8], ['gmarket', 13], ['eleven', 12], ['school', 5]] as const) {
     await frame.locator(`[data-store="${store}"]`).click();
     await expect(frame.locator('#feeResult')).toHaveText((1000000 * rate / 100).toLocaleString('ko-KR') + '원');
-    await expect(frame.locator('#marginResult')).toHaveText((1000000 - 1000000 * rate / 100 - 3000 - product.productCost).toLocaleString('ko-KR') + '원');
+    await expect(frame.locator('#marginResult')).toHaveText((1000000 - 1000000 * rate / 100 - 3000 - Math.round(product.productCost * 1.1)).toLocaleString('ko-KR') + '원');
   }
   await frame.getByRole('button', { name: '가격표', exact: true }).click();
   await expect(frame.getByRole('dialog')).toBeVisible();
   await frame.getByRole('tab', { name: '소모품', exact: true }).click();
-  await expect(frame.locator('#consumablePriceTable tbody tr')).toHaveCount(151);
+  await expect(frame.locator('#consumablePriceTable tbody tr')).toHaveCount(sale.consumableCount);
   await frame.getByRole('tab', { name: '필터', exact: true }).click();
-  await expect(frame.locator('#filterPriceTable tbody tr')).toHaveCount(14);
+  await expect(frame.locator('#filterPriceTable tbody tr')).toHaveCount(sale.filterCount);
   await frame.getByRole('button', { name: '가격표 닫기' }).click();
   await page.screenshot({ path: 'work/calculator-desktop.png', fullPage: true });
   const rentals = await (await page.request.get('/calculator/content/rent-products')).json();
-  expect(rentals.count).toBe(15);
+  expect(rentals.count).toBeGreaterThan(0);
   const rental = rentals.products.find((p: { machineType: string }) => p.machineType === 'color');
   await frame.locator('[data-page="rent"]').click();
   await expect(frame.locator('#rentModelLookupStatus')).toContainText('연결 완료');
@@ -64,6 +63,7 @@ test('calculator requires login, preserves sales/rental calculations, and works 
   await expect(frame.locator('#rentContractTotal')).toHaveText((monthly * 24).toLocaleString('ko-KR') + '원');
   await expect(frame.locator('#rentDepositResult')).toHaveText('300,000원');
   await page.reload();
+  await expect(frame.locator('#rentModelLookupStatus')).toContainText('연결 완료');
   await expect(frame.locator('.history-model-load')).toHaveText(rental.model);
   await frame.locator('.history-model-load').click();
   await expect(frame.locator('#rentMonthlyTotal')).toHaveText(monthly.toLocaleString('ko-KR') + '원');

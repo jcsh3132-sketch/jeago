@@ -3,8 +3,11 @@ const config: NextConfig = {
   serverExternalPackages: ['@libsql/client'],
   // Apply only to route bundles; '*' also matches Next's internal server trace
   // where substring matching would incorrectly exclude its "framework" folder.
-  outputFileTracingExcludes: { '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'] },
-  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content/*': ['./src/calculator/index.html', './src/calculator/style.css', './src/calculator/script.js', './src/calculator/api-settings.js'] },
+  outputFileTracingExcludes: {
+    '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'],
+    '/calculator/content*': ['./src/calculator/index.html', './src/calculator/style.css', './src/calculator/script.js', './src/calculator/catalog.json', './src/calculator/README.md'],
+  },
+  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content*': ['./src/calculator/api-settings.html', './src/calculator/integration.css', './src/calculator/api-settings.js'] },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
