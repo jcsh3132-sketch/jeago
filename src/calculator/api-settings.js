@@ -5,6 +5,10 @@ if (integrationTemplate) {
   document.querySelector('.top-actions').append(content.querySelector('#apiSettingsBtn'));
   document.getElementById('calcBtn').closest('.button-row').before(content.querySelector('#apiFeeControls'));
   document.body.append(content.querySelector('#apiSettingsDialog'));
+  for (const form of document.querySelectorAll('[data-api-platform]')) {
+    form.dataset.apiAccount = '1'; const second = form.cloneNode(true); second.dataset.apiAccount = '2';
+    form.querySelector('h3').textContent += ' · 계정 1'; second.querySelector('h3').textContent += ' · 계정 2'; form.after(second);
+  }
   const themeButton = document.getElementById('modeBtn'); if (themeButton) themeButton.hidden = true;
   integrationTemplate.remove();
 }
@@ -12,7 +16,10 @@ const apiState = { canManage: false, platforms: [] };
 let apiMode = 'auto';
 let apiFeeSelection = '';
 let apiModel = '';
-const connectionFor = (platform) => apiState.platforms.find(c => c.platform === platform);
+let apiConnectionSelection = '';
+const apiAccounts = { smartstore: 1, coupang: 1 };
+try { Object.assign(apiAccounts, JSON.parse(localStorage.getItem('apiAccounts') || '{}')); } catch {}
+const connectionFor = (platform, account = apiAccounts[platform] === 2 ? 2 : 1) => apiState.platforms.find(c => c.platform === platform && c.account === account);
 const apiSupported = () => currentStore === 'smartstore' || currentStore === 'coupang';
 const manualFee = () => typeof feeRateKey === 'function'
   ? storeFeeRates[feeRateKey()] ?? stores[currentStore].rates?.[currentCategory()] ?? stores[currentStore].rate
@@ -44,6 +51,9 @@ function updateApiFee() {
   if (model !== apiModel) { apiModel = model; apiFeeSelection = ''; }
   saleFields.feeRate.readOnly = false;
   if (!supported) return;
+  const accountSelect = $('apiFeeAccount'); accountSelect.value = String(apiAccounts[currentStore] === 2 ? 2 : 1);
+  const connectionId = `${currentStore}:${accountSelect.value}`;
+  if (connectionId !== apiConnectionSelection) { apiConnectionSelection = connectionId; apiFeeSelection = ''; }
   const c = connectionFor(currentStore), select = $('apiFeeProduct');
   const rates = c?.fees || [], matches = rates.filter(fee => modelMatchesFee(fee, model));
   const options = [new Option('선택 모델과 자동 연결', '')];
@@ -66,7 +76,7 @@ function updateApiFee() {
     saleFields.feeRate.value = manualFee();
     status = !c?.configured ? '회사 API를 연결하면 상품별 수수료를 자동 적용합니다. 현재는 직접 입력 기준입니다.'
       : matches.length > 1 ? '일치하는 API 상품이 여러 개입니다. 수수료 기준 상품을 선택하거나 직접 입력해주세요.'
-      : '이 모델의 조회 수수료가 없습니다. API 상품을 선택하거나 수수료율을 직접 입력해주세요.';
+      : '이 모델의 조회 수수료가 없습니다. 이 계정의 최근 7일 거래 상품을 선택하거나 수수료율을 직접 입력해주세요.';
   }
   $('apiFeeStatus').textContent = status;
   calculateSale(false);
@@ -74,8 +84,8 @@ function updateApiFee() {
 
 function renderApiSettings() {
   $('apiAdminNotice').textContent = apiState.canManage ? '회사 API 키는 관리자가 등록하며 모든 직원의 계산에 함께 적용됩니다. 저장된 키를 유지하려면 입력칸을 비워두세요.' : '회사 API 키는 관리자가 등록합니다. 직원들은 조회된 수수료를 함께 사용할 수 있습니다.';
-  for (const platform of ['smartstore', 'coupang']) {
-    const form = document.querySelector(`[data-api-platform="${platform}"]`), c = connectionFor(platform);
+  for (const form of document.querySelectorAll('[data-api-platform]')) {
+    const platform = form.dataset.apiPlatform, account = Number(form.dataset.apiAccount), c = connectionFor(platform, account);
     form.querySelector('.api-credentials').hidden = !apiState.canManage;
     form.querySelector('[data-api-save]').hidden = !apiState.canManage;
     const disconnect = form.querySelector('[data-api-disconnect]');
@@ -86,19 +96,19 @@ function renderApiSettings() {
   }
 }
 
-async function refreshPlatform(platform, automatic = false) {
-  const form = document.querySelector(`[data-api-platform="${platform}"]`);
+async function refreshPlatform(platform, account = 1) {
+  const form = document.querySelector(`[data-api-platform="${platform}"][data-api-account="${account}"]`);
   const status = form.querySelector('.api-action-status'), button = form.querySelector('[data-api-refresh]');
   status.textContent = '수수료를 조회하고 있습니다.'; button.disabled = true;
   try {
-    await apiRequest({ action: 'refresh', platform, ...(!automatic ? { from: form.elements.from.value, to: form.elements.to.value } : {}) });
-    if (connectionFor(platform)?.syncing) { status.textContent = '회사 PC에 조회를 요청했습니다. PC 연결 프로그램이 켜져 있으면 자동 갱신됩니다.'; return; }
-    const count = connectionFor(platform)?.fees.length || 0;
-    status.textContent = count ? `${count}개 상품의 수수료를 갱신했습니다.` : '연결은 확인됐지만 선택 기간의 상품 수수료 내역이 없습니다. 조회 날짜를 변경해주세요.';
+    await apiRequest({ action: 'refresh', platform, account });
+    if (connectionFor(platform, account)?.syncing) { status.textContent = '회사 PC에 조회를 요청했습니다. PC 연결 프로그램이 켜져 있으면 자동 갱신됩니다.'; return; }
+    const count = connectionFor(platform, account)?.fees.length || 0;
+    status.textContent = count ? `${count}개 상품의 최근 7일 평균 수수료를 갱신했습니다.` : '최근 7일에 수수료를 계산할 거래가 없습니다. 직접 입력해주세요.';
   } catch (error) {
     status.textContent = error.message || '수수료 조회를 완료하지 못했습니다.';
     if (currentStore === platform) $('apiFeeStatus').textContent = `수수료 갱신 실패 · ${status.textContent} 기존 조회값 또는 직접 입력값을 사용합니다.`;
-  } finally { button.disabled = !connectionFor(platform)?.configured; }
+  } finally { button.disabled = !connectionFor(platform, account)?.configured; }
 }
 
 function setupApiSettings() {
@@ -108,37 +118,38 @@ function setupApiSettings() {
   dialog.addEventListener('close', () => dialog.querySelectorAll('.api-credentials input').forEach(input => { input.value = ''; }));
   for (const form of dialog.querySelectorAll('[data-api-platform]')) {
     form.elements.from.value = apiDate(-7); form.elements.to.value = apiDate(-1);
-    form.elements.from.max = apiDate(); form.elements.to.max = apiDate();
+    form.elements.from.readOnly = true; form.elements.to.readOnly = true;
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      const platform = form.dataset.apiPlatform, status = form.querySelector('.api-action-status'), save = form.querySelector('[data-api-save]');
-      const input = { action: 'save', platform, revision: connectionFor(platform)?.revision || 0 };
+      const platform = form.dataset.apiPlatform, account = Number(form.dataset.apiAccount), status = form.querySelector('.api-action-status'), save = form.querySelector('[data-api-save]');
+      const input = { action: 'save', platform, account, revision: connectionFor(platform, account)?.revision || 0 };
       for (const field of form.querySelectorAll('.api-credentials input')) input[field.name] = field.value;
       save.disabled = true; status.textContent = 'API 키를 저장하고 있습니다.';
       try {
         await apiRequest(input);
         form.querySelectorAll('.api-credentials input').forEach(field => { field.value = ''; });
         status.textContent = '키를 저장했습니다. 연결을 확인하고 수수료를 조회합니다.';
-        await refreshPlatform(platform);
+        await refreshPlatform(platform, account);
       } catch (error) { status.textContent = error.message || 'API 키를 저장하지 못했습니다.'; }
       finally { save.disabled = false; }
     });
-    form.querySelector('[data-api-refresh]').addEventListener('click', () => refreshPlatform(form.dataset.apiPlatform));
+    form.querySelector('[data-api-refresh]').addEventListener('click', () => refreshPlatform(form.dataset.apiPlatform, Number(form.dataset.apiAccount)));
     form.querySelector('[data-api-disconnect]').addEventListener('click', async () => {
       if (!confirm('회사 API 연결을 해제할까요? 모든 직원의 자동 수수료 적용이 해제됩니다.')) return;
-      try { await apiRequest({ action: 'disconnect', platform: form.dataset.apiPlatform, revision: connectionFor(form.dataset.apiPlatform)?.revision }); form.querySelector('.api-action-status').textContent = '회사 API 연결을 해제했습니다.'; }
+      try { await apiRequest({ action: 'disconnect', platform: form.dataset.apiPlatform, account: Number(form.dataset.apiAccount), revision: connectionFor(form.dataset.apiPlatform, Number(form.dataset.apiAccount))?.revision }); form.querySelector('.api-action-status').textContent = '회사 API 연결을 해제했습니다.'; }
       catch (error) { form.querySelector('.api-action-status').textContent = error.message; }
     });
   }
   $('apiFeeMode').addEventListener('change', event => { apiMode = event.target.value; if (apiMode === 'manual') saleFields.feeRate.value = manualFee(); updateApiFee(); });
   $('apiFeeProduct').addEventListener('change', event => { apiFeeSelection = event.target.value; updateApiFee(); });
+  $('apiFeeAccount').addEventListener('change', event => { apiAccounts[currentStore] = Number(event.target.value); localStorage.setItem('apiAccounts', JSON.stringify(apiAccounts)); apiFeeSelection = ''; updateApiFee(); });
   saleFields.feeRate.addEventListener('input', () => { if (apiSupported()) { apiMode = 'manual'; $('apiFeeMode').value = 'manual'; updateApiFee(); } });
   saleFields.modelName.addEventListener('input', updateApiFee);
   saleFields.modelName.addEventListener('change', updateApiFee);
   saleFields.modelName.addEventListener('blur', updateApiFee);
   document.addEventListener('click', event => { if (event.target.closest('[data-store],#modelDropdown')) queueMicrotask(updateApiFee); });
   apiRequest().then(async () => {
-    for (const c of apiState.platforms) if (c.shouldRefresh && !c.syncing) await refreshPlatform(c.platform, true);
+    for (const c of apiState.platforms) if (c.shouldRefresh && !c.syncing) await refreshPlatform(c.platform, c.account);
   }).catch(error => { $('apiAdminNotice').textContent = error.message; });
 }
 

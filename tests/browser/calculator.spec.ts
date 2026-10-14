@@ -77,3 +77,30 @@ test('calculator requires login, preserves sales/rental calculations, and works 
   await frame.locator('[data-page="rent"]').click();
   await expect(frame.locator('.history-model-load')).toHaveCount(0);
 });
+
+test('all price tabs share stable headers, row sizing and column filters on desktop/mobile', async ({page}) => {
+  await loginForTest(page.request);await page.goto('/calculator');
+  const frame=page.frameLocator('iframe[title="판매·임대 계산기"]');
+  await expect(frame.locator('#modelLookupStatus')).toContainText('연결 완료');
+  await frame.getByRole('button',{name:'가격표',exact:true}).click();
+  const positions:number[]=[],heights:number[]=[];
+  for(const [name,id] of [['프린터','printerPriceTable'],['소모품','consumablePriceTable'],['필터','filterPriceTable']] as const){
+    await frame.getByRole('tab',{name,exact:true}).click();
+    positions.push((await frame.locator('.price-view-tabs').boundingBox())!.x);
+    const table=frame.locator('#'+id);
+    expect(await table.locator('.unified-column-button').count()).toBe(await table.locator('thead th').count());
+    heights.push((await table.locator('tbody tr').first().boundingBox())!.height);
+    await table.locator('.unified-column-button').first().click();
+    await expect(frame.getByRole('dialog',{name:'가격표 열 필터'})).toBeVisible();
+    await frame.locator('.unified-column-options input').first().check();
+    await expect(table.locator('.unified-column-button').first()).toHaveClass(/filtered/);
+    await frame.getByRole('button',{name:'이 열 초기화'}).click();
+    await table.locator('.unified-column-button').first().click();
+    await page.screenshot({path:`work/price-${id}-desktop.png`,fullPage:true});
+  }
+  expect(Math.max(...positions)-Math.min(...positions)).toBeLessThan(2);
+  expect(Math.max(...heights)-Math.min(...heights)).toBeLessThan(2);
+  await page.setViewportSize({width:390,height:844});
+  for(const name of ['프린터','소모품','필터']){await frame.getByRole('tab',{name,exact:true}).click();await page.screenshot({path:`work/price-${name}-mobile.png`,fullPage:true});}
+  expect(await frame.locator('body').evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+});

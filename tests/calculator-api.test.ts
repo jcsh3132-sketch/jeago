@@ -8,6 +8,8 @@ import { getDb } from '../src/lib/db';
 import { AuthError, register, createSession } from '../src/lib/auth';
 import { encryptCredentials, decryptCredentials, calculatorApiState, saveCalculatorCredentials, refreshCalculatorFees, disconnectCalculator, dateRange } from '../src/lib/calculator-api';
 import { collectFees, coupangAuthorization, naverFeeRecords, coupangFeeRecords } from '../src/lib/calculator-providers';
+import { upgradeCalculatorAccounts } from '../src/lib/calculator-schema';
+import { createClient } from '@libsql/client';
 mkdirSync('work', { recursive: true });
 process.env.JEAGO_TEST_MODE = '1';
 process.env.JEAGO_TEST_DATABASE_URL = pathToFileURL(join(mkdtempSync(join(resolve('work'), 'calculator-api-test-')), 'test.db')).href;
@@ -38,11 +40,61 @@ test('official signing, VAT, fee bases, original/refund filtering and credential
     { ...base, productOrderType: 'DELIVERY', commissionType: 'PAY_COMMISSION', commissionBasisAmount: 100000, commissionAmount: 5000 },
   ]);
   assert.equal(rates.length, 1); assert.equal(rates[0].rate, 5); assert.equal(rates[0].samples, 1);
-  const sale = { saleType: 'SALE', recognitionDate: '2026-09-29', items: [{ vendorItemId: 123, vendorItemName: 'SL-J1685', serviceFeeRatio: 10.9, couranteeFeeRatio: 0, externalSellerSkuCode: 'SL-J1685' }] };
+  const naverAverage=naverFeeRecords([{...base,commissionType:'PAY_COMMISSION',commissionBasisAmount:10000,commissionAmount:300},{...base,productOrderId:'o2',commissionType:'PAY_COMMISSION',commissionBasisAmount:30000,commissionAmount:1500}]);
+  assert.equal(naverAverage[0].rate,4.5);assert.equal(naverAverage[0].samples,2);
+  const sale = { orderId: 1, saleType: 'SALE', recognitionDate: '2026-09-29', items: [{ vendorItemId: 123, vendorItemName: 'SL-J1685', saleAmount: 100000, serviceFee: 10900, serviceFeeVat: 1090, couranteeFee: 0, couranteeFeeVat: 0, externalSellerSkuCode: 'SL-J1685' }] };
   assert.equal(coupangFeeRecords([sale, { ...sale, saleType: 'REFUND' }])[0].rate, 11.99);
-  assert.equal(coupangFeeRecords([{ ...sale, items: [{ vendorItemId: 123, serviceFeeRatio: 10, couranteeFeeRatio: 1 }] }])[0].rate, 12.1);
+  assert.equal(coupangFeeRecords([{ ...sale, items: [{ vendorItemId: 123, saleAmount: 100000, serviceFee: 10000, serviceFeeVat: 1000, couranteeFee: 1000, couranteeFeeVat: 100 }] }])[0].rate, 12.1);
+  const second = { ...sale, orderId: 2, items: [{ ...sale.items[0], saleAmount: 300000, serviceFee: 15000, serviceFeeVat: 1500 }] };
+  const averaged = coupangFeeRecords([sale, second, sale, { ...second, saleType: 'REFUND' }])[0];
+  assert.equal(averaged.rate, 7.1225); assert.equal(averaged.samples, 2);
+  assert.equal(coupangFeeRecords([{...sale,items:[{vendorItemId:123,serviceFeeRatio:10}]}]).length,0);
   assert.throws(() => dateRange({ from: '2026-02-30', to: '2026-03-01' }), /날짜/);
   assert.throws(() => dateRange({ from: '2026-01-01', to: '2026-03-01' }), /31일/);
+});
+
+test('four seller connections stay isolated across save, refresh, disconnect and encryption', async () => {
+  const user=await register({username:'four-slots',display_name:'관리자',password:'1234',password_confirm:'1234'});
+  const token=await createSession(user.id,true),db=await getDb();
+  await db.execute({sql:'INSERT INTO app_admin(singleton,user_id) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET user_id=excluded.user_id',args:[user.id]});
+  const cp={platform:'coupang',revision:0,accessKey:'account-one',secretKey:'secret-one',vendorId:'A00011111'};
+  const nv={platform:'smartstore',revision:0,clientId:'naver-one',clientSecret:'$2a$10$abcdefghijklmnopqrstuv'};
+  await saveCalculatorCredentials(token,{...cp,account:1});
+  await saveCalculatorCredentials(token,{...cp,account:2,accessKey:'account-two',secretKey:'secret-two',vendorId:'A00022222'});
+  await saveCalculatorCredentials(token,{...nv,account:1});
+  await saveCalculatorCredentials(token,{...nv,account:2,clientId:'naver-two'});
+  const state=await calculatorApiState(token);assert.equal(state.platforms.length,4);assert(state.platforms.every(c=>c.configured));
+  assert(!JSON.stringify(state).includes('secret-two'));
+  const saved=(await db.execute("SELECT credentials FROM calculator_api_connection WHERE platform='coupang' AND account=2")).rows[0];
+  assert.equal(decryptCredentials('coupang',String(saved.credentials),2).accessKey,'account-two');
+  assert.throws(()=>decryptCredentials('coupang',String(saved.credentials),1));
+  for(const account of [0,3,'2',null])await assert.rejects(saveCalculatorCredentials(token,{...cp,account}),/계정 1 또는 2/);
+  globalThis.fetch=(async (url,init)=>{
+    const uri=new URL(String(url));assert.equal(uri.searchParams.get('vendorId'),'A00022222');
+    assert(String((init?.headers as Record<string,string>).Authorization).includes('access-key=account-two'));
+    return json({code:200,hasNext:false,data:[{orderId:1,saleType:'SALE',recognitionDate:dateRange({}).to,items:[{vendorItemId:8,vendorItemName:'모델',saleAmount:10000,serviceFee:600,serviceFeeVat:60}]}]});
+  }) as typeof fetch;
+  try { await refreshCalculatorFees(token,{platform:'coupang',account:2}); } finally {globalThis.fetch=nativeFetch;}
+  const updated=await calculatorApiState(token);
+  assert.equal(updated.platforms.find(c=>c.platform==='coupang'&&c.account===2)!.fees[0].rate,6.6);
+  assert.equal(updated.platforms.find(c=>c.platform==='coupang'&&c.account===1)!.fees.length,0);
+  await disconnectCalculator(token,{platform:'coupang',account:1,revision:1});
+  const disconnected=await calculatorApiState(token);assert.equal(disconnected.platforms.find(c=>c.platform==='coupang'&&c.account===2)!.configured,true);
+  await db.execute('DELETE FROM app_admin');await db.execute('DELETE FROM calculator_api_connection');
+});
+
+test('legacy single-account credentials migrate to slot one without exposing or losing them', async () => {
+  const file=pathToFileURL(join(mkdtempSync(join(resolve('work'),'calculator-migration-')),'test.db')).href;
+  const db=createClient({url:file});
+  try {
+    await db.execute("CREATE TABLE calculator_api_connection(platform TEXT PRIMARY KEY,credentials TEXT,revision INTEGER,updated_by TEXT)");
+    await db.execute("INSERT INTO calculator_api_connection VALUES ('coupang','encrypted-old-value',7,'original-user')");
+    const tx=await db.transaction('write');try{await upgradeCalculatorAccounts(tx);await tx.commit();}finally{tx.close();}
+    const row=(await db.execute('SELECT * FROM calculator_api_connection')).rows[0];
+    assert.equal(row.account,1);assert.equal(row.credentials,'encrypted-old-value');assert.equal(row.revision,7);assert.equal(row.fees,'[]');
+    await db.execute("INSERT INTO calculator_api_connection(platform,account,credentials,updated_by) VALUES('coupang',2,'second-value','user')");
+    assert.equal((await db.execute('SELECT * FROM calculator_api_connection')).rows.length,2);
+  } finally{db.close();}
 });
 
 test('shared fees expose no secrets; admin-only changes, full pagination, failed refresh and concurrent key changes', async () => {
@@ -65,7 +117,9 @@ test('shared fees expose no secrets; admin-only changes, full pagination, failed
     assert.equal(init?.redirect, 'error');
     assert(String((init?.headers as Record<string,string>).Authorization).includes('signature='));
     const second = uri.searchParams.get('token') === 'page-2';
-    return json({ code: 200, hasNext: !second, nextToken: second ? '' : 'page-2', data: [{ saleType: 'SALE', recognitionDate: '2026-09-29', purchaserName: 'PRIVATE BUYER', items: [{ vendorItemId: second ? 124 : 123, vendorItemName: second ? 'SL-T1685W' : 'SL-J1685', serviceFeeRatio: second ? 5 : 10.9 }] }] });
+    assert.equal(uri.searchParams.get('recognitionDateFrom'),dateRange({}).from);
+    assert.equal(uri.searchParams.get('recognitionDateTo'),dateRange({}).to);
+    return json({ code: 200, hasNext: !second, nextToken: second ? '' : 'page-2', data: [{ saleType: 'SALE', recognitionDate: dateRange({}).to, purchaserName: 'PRIVATE BUYER', items: [{ vendorItemId: second ? 124 : 123, vendorItemName: second ? 'SL-T1685W' : 'SL-J1685', saleAmount:100000,serviceFee:second?5000:10900,serviceFeeVat:second?500:1090 }] }] });
   }) as typeof fetch;
   await refreshCalculatorFees(memberToken, { platform: 'coupang', from: '2026-09-28', to: '2026-09-29' });
   assert.equal(calls.length, 2);

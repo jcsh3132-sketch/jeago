@@ -40,23 +40,28 @@ export function naverFeeRecords(rows: Row[]): FeeRecord[] {
 }
 
 export function coupangFeeRecords(rows: Row[]): FeeRecord[] {
-  const records = new Map<string, FeeRecord>();
+  const records = new Map<string, { id: string; name: string; sku: string; basisDate: string; fee: number; basis: number; samples: number }>();
+  const seen = new Set<string>();
   for (const r of rows) {
     if (r.saleType !== 'SALE') continue;
     for (const item of list(r.items)) {
-      const id = text(item.vendorItemId), base = number(item.serviceFeeRatio), extra = number(item.couranteeFeeRatio) ?? 0;
-      if (!id || base === null || base < 0 || extra < 0 || base + extra > 90.909) continue;
-      // Coupang reports the nominal service rate excluding VAT. The calculator
-      // deducts the VAT-inclusive platform cost, including Courantee when present.
-      const rate = roundRate((base + extra) * 1.1), date = text(r.recognitionDate), prior = records.get(id);
-      if (prior && prior.basisDate > date) continue;
-      if (prior && prior.basisDate === date && prior.rate !== rate) {
-        throw new ProviderError('같은 상품·날짜에 서로 다른 쿠팡 수수료율이 있습니다. 조회 기간을 좁혀주세요.');
-      }
-      records.set(id, { id, name: text(item.vendorItemName) || text(item.productName), sku: text(item.externalSellerSkuCode), rate, samples: (prior?.samples || 0) + 1, basisDate: date, source: `쿠팡 API 요율 ${base}%${extra ? ` + 쿠런티 ${extra}%` : ''} · 수수료 VAT 포함` });
+      const id = text(item.vendorItemId), basis = number(item.saleAmount);
+      const service = number(item.serviceFee), vat = number(item.serviceFeeVat);
+      const extra = number(item.couranteeFee) ?? 0, extraVat = number(item.couranteeFeeVat) ?? 0;
+      if (!id || basis === null || basis <= 0 || service === null || service < 0 || vat === null || vat < 0 || extra < 0 || extraVat < 0) continue;
+      const fee = service + vat + extra + extraVat;
+      if (fee > basis) continue;
+      const orderId = text(r.orderId), date = text(r.recognitionDate);
+      const key = orderId && orderId !== '0' ? `${orderId}:${id}:${date}` : '';
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      const g = records.get(id) || { id, name: text(item.vendorItemName) || text(item.productName), sku: text(item.externalSellerSkuCode), basisDate: date, fee: 0, basis: 0, samples: 0 };
+      g.fee += fee; g.basis += basis; g.samples++;
+      if (date > g.basisDate) { g.basisDate = date; g.name = text(item.vendorItemName) || text(item.productName); }
+      records.set(id, g);
     }
   }
-  return [...records.values()];
+  return [...records.values()].map(g => ({ id: g.id, name: g.name, sku: g.sku, rate: roundRate(g.fee / g.basis * 100), samples: g.samples, basisDate: g.basisDate, source: '쿠팡 최근 7일 실부과 수수료(VAT·쿠런티 포함) / 매출금액 · 가중평균' }));
 }
 
 export function coupangAuthorization(path: string, query: string, credentials: ApiCredentials, now = new Date()) {

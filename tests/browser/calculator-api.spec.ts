@@ -16,7 +16,9 @@ test('company API settings replace dark mode, hide secrets, and share automatic 
   await expect(frame.locator('#modelLookupStatus')).toContainText('연결 완료');
   await expect(frame.getByRole('button', { name: /다크모드|라이트모드/ })).toHaveCount(0);
   await frame.getByRole('button', { name: 'API 연결 설정' }).click();
-  const cp = frame.locator('[data-api-platform="coupang"]');
+  const cp = frame.locator('[data-api-platform="coupang"][data-api-account="1"]');
+  await expect(frame.locator('[data-api-platform="coupang"]')).toHaveCount(2);
+  await expect(frame.locator('[data-api-platform="smartstore"]')).toHaveCount(2);
   await expect(cp.getByRole('button', { name: '저장하고 연결 확인' })).toBeVisible();
   await page.screenshot({ path: 'work/calculator-api-admin-desktop.png', fullPage: true });
   const saved = await page.request.post('/api/calculator/connections', { headers: origin, data: { action: 'save', platform: 'coupang', revision: 0, accessKey: 'browser-access', secretKey: 'browser-private-secret', vendorId: 'A00012345' } });
@@ -30,7 +32,8 @@ test('company API settings replace dark mode, hide secrets, and share automatic 
     const row = db.prepare('SELECT credentials FROM calculator_api_connection WHERE platform=?').get('coupang')!;
     expect(String(row.credentials)).not.toContain('browser-private-secret');
     const fees = [{ id: '123', name: '삼성 SL-J1685 프린터', sku: 'SL-J1685', rate: 11.99, samples: 3, basisDate: '2026-09-29', source: '쿠팡 API 요율 10.9% · 수수료 VAT 포함' }];
-    db.prepare('UPDATE calculator_api_connection SET fees=?,synced_at=?,attempted_at=?,range_from=?,range_to=? WHERE platform=?').run(JSON.stringify(fees), Date.now(), Date.now(), '2026-09-23', '2026-09-29', 'coupang');
+    const end=new Date(Date.now()+9*3600000-86400000).toISOString().slice(0,10),start=new Date(Date.parse(end)-6*86400000).toISOString().slice(0,10);
+    db.prepare('UPDATE calculator_api_connection SET fees=?,synced_at=?,attempted_at=?,range_from=?,range_to=? WHERE platform=? AND account=1').run(JSON.stringify(fees), Date.now(), Date.now(), start, end, 'coupang');
   } finally { db.close(); }
   await frame.getByRole('button', { name: 'API 설정 닫기' }).click();
   await page.reload();
@@ -52,6 +55,18 @@ test('company API settings replace dark mode, hide secrets, and share automatic 
   await expect(frame.locator('#apiFeeStatus')).toContainText('이 모델의 조회 수수료가 없습니다');
   await expect(frame.locator('#feeRate')).toHaveValue('8');
   await frame.locator('#apiFeeProduct').selectOption('123');
+  await expect(frame.locator('#feeRate')).toHaveValue('11.99');
+  const secondSaved=await page.request.post('/api/calculator/connections',{headers:origin,data:{action:'save',platform:'coupang',account:2,revision:0,accessKey:'browser-account-two',secretKey:'browser-secret-two',vendorId:'A00022222'}});
+  expect(secondSaved.ok()).toBe(true);
+  const secondDb=new DatabaseSync(file);
+  try {const end=new Date(Date.now()+9*3600000-86400000).toISOString().slice(0,10),start=new Date(Date.parse(end)-6*86400000).toISOString().slice(0,10);secondDb.prepare('UPDATE calculator_api_connection SET fees=?,synced_at=?,attempted_at=?,range_from=?,range_to=? WHERE platform=? AND account=2').run(JSON.stringify([{id:'123',name:'SL-J1685',sku:'SL-J1685',rate:6.6,samples:5,basisDate:end,source:'7일 가중평균'}]),Date.now(),Date.now(),start,end,'coupang');}finally{secondDb.close();}
+  await page.reload();
+  await expect(frame.locator('#modelLookupStatus')).toContainText('연결 완료');
+  await frame.locator('[data-store="coupang"]').click();
+  await frame.locator('#modelName').fill('SL-J1685');await frame.locator('#modelName').press('Tab');
+  await frame.locator('#apiFeeAccount').selectOption('2');
+  await expect(frame.locator('#feeRate')).toHaveValue('6.6');
+  await frame.locator('#apiFeeAccount').selectOption('1');
   await expect(frame.locator('#feeRate')).toHaveValue('11.99');
   await frame.locator('#modelName').fill('SL-J1685W');
   await expect(frame.locator('#apiFeeStatus')).toContainText('이 모델의 조회 수수료가 없습니다');

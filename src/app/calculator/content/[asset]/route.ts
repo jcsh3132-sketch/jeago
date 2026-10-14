@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 const assets: Record<string, [string, string]> = {
   'integration-style': ['integration.css', 'text/css; charset=utf-8'],
   'api-settings': ['api-settings.js', 'text/javascript; charset=utf-8'],
+  'price-table': ['price-table.js', 'text/javascript; charset=utf-8'],
 };
 export async function GET(request: NextRequest, { params }: { params: Promise<{ asset: string }> }) {
   const user = await sessionUser(request.cookies.get(SESSION_COOKIE)?.value);

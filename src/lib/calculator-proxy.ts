@@ -31,5 +31,5 @@ scoped.setItem('themeMode','light');})();
     (_match, attribute, quote, asset, query = '') => `${attribute}=${quote}/calculator/content/${asset}${query}${quote}`);
   if (!/<\/head\s*>/i.test(result) || !/<\/body\s*>/i.test(result)) throw new Error('Invalid upstream calculator HTML');
   result = result.replace(/<\/head\s*>/i, `${bootstrap}</head>`);
-  return result.replace(/<\/body\s*>/i, `${integration}<script src="/calculator/content/api-settings"></script></body>`);
+  return result.replace(/<\/body\s*>/i, `${integration}<script src="/calculator/content/api-settings"></script><script src="/calculator/content/price-table"></script></body>`);
 }
