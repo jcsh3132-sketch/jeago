@@ -111,7 +111,7 @@ test('employee request is deducted only after first and final approvers confirm 
     await page.reload();
     await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0일');
     await expect(page.locator('.leave-history-row')).toContainText('최종 승인 대기');
-    await expect(page.locator('.leave-history-row')).toContainText(firstAccount.username);
+    await expect(page.locator('.leave-history-row')).toContainText(firstAccount.display_name);
     await finalPage.reload();
     await finalPage.evaluate(()=>window.scrollTo(0,0));
     await finalPage.screenshot({path:'work/leave-approval-desktop.png',fullPage:true});
@@ -119,8 +119,9 @@ test('employee request is deducted only after first and final approvers confirm 
     await expect(finalPage.locator('.leave-page .form-status')).toContainText('최종 승인했습니다.');
     await page.reload();
     await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0.5일');
+    await expect(page.locator('.leave-history-row')).toHaveCount(1);
     await expect(page.locator('.leave-history-row')).toContainText('승인 완료');
-    await expect(page.locator('.leave-history-row')).toContainText(finalAccount.username);
+    await expect(page.locator('.leave-history-row')).toContainText(finalAccount.display_name);
     await page.setViewportSize({width:390,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
     await page.screenshot({path:'work/leave-approval-mobile.png',fullPage:true});
