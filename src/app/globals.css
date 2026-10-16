@@ -509,3 +509,13 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
 .transaction-edit-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}.transaction-edit-card .field{min-width:0}.transaction-edit-card input,.transaction-edit-card select{min-width:0;max-width:100%}.transaction-stock-preview{padding:14px 16px;border-radius:10px;background:var(--blue-soft);font-size:13px;overflow-wrap:anywhere}.transaction-stock-preview p{margin:8px 0 0}.transaction-stock-error{color:var(--red)}
 
 .admin-entry{align-items:center;gap:10px;flex-wrap:wrap}.admin-entry strong{margin-right:auto;font-size:14px}.calculator-frame{display:block;width:100%;height:calc(100dvh - 210px);min-height:620px;border:0;border-radius:14px;background:#f7fbff}@media(max-width:760px){.calculator-frame{height:calc(100dvh - 230px);min-height:540px;border-radius:10px}}
+
+/* Keep every mobile menu item reachable by horizontal swipe. */
+@media(max-width:700px){
+ body{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+ .mobile-nav{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#c5d0e4 transparent;height:calc(64px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+ .mobile-nav-link{flex:0 0 84px;min-width:84px;height:63px;scroll-snap-align:start;white-space:nowrap}
+ .mobile-nav-link b{font-size:10px}
+ .mobile-nav::-webkit-scrollbar{height:3px}
+ .mobile-nav::-webkit-scrollbar-thumb{background:#c5d0e4;border-radius:3px}
+}
