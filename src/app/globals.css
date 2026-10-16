@@ -521,3 +521,5 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
 }
 
 @media(max-width:700px){.quotation-frame{height:calc(100dvh - 180px);min-height:520px}.content-area:has(.quotation-frame){padding:8px 8px 16px}}
+
+.leave-approval-details .leave-remaining{margin-top:8px;color:#315efb;font-size:13px}.leave-remaining strong{font-size:14px}.leave-remaining small{color:#738096;font-size:11px}

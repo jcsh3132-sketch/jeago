@@ -120,6 +120,8 @@ test('employee request is deducted only after first and final approvers confirm 
     await page.reload();
     await expect(page.locator('.leave-totals > div').nth(2)).toContainText('0.5일');
     await expect(page.locator('.leave-history-row')).toHaveCount(1);
+    await expect(page.locator('.leave-remaining')).toContainText('잔여 연차');
+    await expect(page.locator('.leave-remaining strong')).toHaveText(await page.locator('.leave-totals > div').nth(3).locator('strong').innerText());
     await expect(page.locator('.leave-history-row')).toContainText('승인 완료');
     await expect(page.locator('.leave-history-row')).toContainText(finalAccount.display_name);
     await page.setViewportSize({width:390,height:844});
