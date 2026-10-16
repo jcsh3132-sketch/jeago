@@ -7,7 +7,7 @@ const config: NextConfig = {
     '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'],
     '/calculator/content*': ['./src/calculator/index.html', './src/calculator/style.css', './src/calculator/script.js', './src/calculator/catalog.json', './src/calculator/README.md'],
   },
-  outputFileTracingIncludes: { '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content*': ['./src/calculator/api-settings.html', './src/calculator/integration.css', './src/calculator/api-settings.js', './src/calculator/price-table.js'] },
+  outputFileTracingIncludes: { '/quotation/content/*': ['./src/quotation/**/*'], '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content*': ['./src/calculator/api-settings.html', './src/calculator/integration.css', './src/calculator/api-settings.js', './src/calculator/price-table.js'] },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

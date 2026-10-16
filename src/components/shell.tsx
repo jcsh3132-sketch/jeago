@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { RefreshStatus } from './refresh-status';
 import { LogoutButton } from './auth-panel';
 import { SessionRenewal } from './session-renewal';
-const nav = [['/', '▦', '재고 현황'], ['/add', '＋', '모델 등록'], ['/transactions', '↻', '입출고 내역'], ['/categories', '≡', '카테고리 관리'], ['/partners', '◎', '거래처 관리'], ['/calculator', '▤', '판매·임대 계산']];
+const nav = [['/', '▦', '재고 현황'], ['/add', '＋', '모델 등록'], ['/transactions', '↻', '입출고 내역'], ['/categories', '≡', '카테고리 관리'], ['/partners', '◎', '거래처 관리'], ['/calculator', '▤', '판매·임대 계산'], ['/quotation', '▧', '견적서 작성']];
 export function Shell({ children, username }: { children: ReactNode; username: string }) {
   const path = usePathname();
   const title = nav.find(n => n[0] === path)?.[2] || (path === '/leave' ? '연차계산' : path === '/batch-outbound' ? '묶음 출고' : path === '/admin/trash' ? '휴지통' : path === '/admin/users' ? '회원 관리' : path === '/account' ? '내 계정' : path.startsWith('/transactions/') ? '입출고 내역 수정' : path.startsWith('/edit/') ? '모델 수정' : path.startsWith('/inbound/') ? '입고 처리' : path.startsWith('/outbound/') ? '출고 처리' : path.startsWith('/history/') ? '입출고 이력' : '재고 관리');
