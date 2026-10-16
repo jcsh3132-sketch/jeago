@@ -519,3 +519,5 @@ a{color:inherit}.app-shell{min-height:100vh;display:flex}.app-sidebar{position:f
  .mobile-nav::-webkit-scrollbar{height:3px}
  .mobile-nav::-webkit-scrollbar-thumb{background:#c5d0e4;border-radius:3px}
 }
+
+@media(max-width:700px){.quotation-frame{height:calc(100dvh - 180px);min-height:520px}.content-area:has(.quotation-frame){padding:8px 8px 16px}}
