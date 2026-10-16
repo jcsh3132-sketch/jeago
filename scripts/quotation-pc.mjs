@@ -24,6 +24,6 @@ async function poll(){
  catch(e){const message=job.kind==='send'?'메일 발송 결과를 확인하지 못했습니다. 중복 발송을 방지하기 위해 보낸메일함을 확인해주세요.':'견적서 처리에 실패했습니다. 회사 PC 연결을 확인하고 다시 시도해주세요.';await db.execute({sql:"UPDATE quotation_job SET status='error',payload='',error=?,updated_at=? WHERE id=? AND status='running'",args:[message,Date.now(),job.id]});console.log('Quotation processing failed; private details suppressed');}
  }
 }
-await heartbeat();
+try{await heartbeat();}catch{console.log('Waiting for local quotation server');}
 console.log('Quotation PC connection started');
 while(true){try{await poll();}catch{console.log('Quotation PC connection unavailable; retrying');}await new Promise(resolve=>setTimeout(resolve,1000));}
