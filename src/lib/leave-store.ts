@@ -19,7 +19,14 @@ export async function leaveEmployees(token: string | undefined): Promise<LeaveEm
   if (!user) throw new AuthError('로그인이 필요합니다.', 401);
   const admin = await isLeaveAdministrator(user.id);
   const rows = (await (await getDb()).execute({ sql: 'SELECT * FROM leave_employee WHERE user_id=? OR ?=1 ORDER BY CASE WHEN user_id=? THEN 0 ELSE 1 END,created_at,id', args: [user.id, admin ? 1 : 0, user.id] })).rows;
-  return rows.map(row => ({ id: String(row.id), name: String(row.name), position: String(row.position), hired: String(row.hired), special: Number(row.special), version: Number(row.version), entries: JSON.parse(String(row.entries)), is_self: row.user_id === user.id }));
+  const names = new Map((await (await getDb()).execute('SELECT id,display_name FROM app_user')).rows.map(row => [String(row.id),String(row.display_name)]));
+  const displayEntries = (raw: string): LeaveEntry[] => JSON.parse(raw).map((entry: LeaveEntry) => {
+    if (!entry.approval) return entry;
+    const approval = { ...entry.approval };
+    for (const key of ['first','final'] as const) { const stamp = approval[key]; if (stamp) approval[key] = { ...stamp, display_name: stamp.display_name || names.get(stamp.user_id) || '승인자' }; }
+    return { ...entry, approval };
+  });
+  return rows.map(row => ({ id: String(row.id), name: String(row.name), position: String(row.position), hired: String(row.hired), special: Number(row.special), version: Number(row.version), entries: displayEntries(String(row.entries)), is_self: row.user_id === user.id }));
 }
 export async function saveLeave(token: string | undefined, input: Record<string, unknown>) {
   const user = await sessionUser(token);
@@ -57,6 +64,12 @@ export async function saveLeave(token: string | undefined, input: Record<string,
         if (!admin && entryChanged(next, old)) throw new AuthError('기존 사용 이력은 관리자만 수정할 수 있습니다.', 403);
       }
     }
+    for (const entry of entries) {
+      const old = previous.find(item => item.id === entry.id);
+      if (entry.start && (!old || entryChanged(entry, old)) && entries.some(other => other.id !== entry.id && other.start === entry.start && other.end === entry.end && other.days === entry.days)) {
+        throw new AuthError('동일한 날짜와 일수의 연차 내역이 이미 있습니다. 기존 내역을 확인하거나 수정해주세요.', 409);
+      }
+    }
     const submittedAt = new Date().toISOString();
     entries = entries.map(entry => {
       const old = previous.find(item => item.id === entry.id);
@@ -90,7 +103,7 @@ export async function approveLeave(token: string | undefined, input: Record<stri
     if (!entry) throw new AuthError('신청 내역을 찾을 수 없습니다.', 404);
     const approval = entry.approval;
     if (!approval || approval.status !== (stage === 1 ? 'pending_first' : 'pending_final') || (stage === 2 && !approval.first)) throw new AuthError('1차 승인 후 최종 승인할 수 있습니다. 현재 승인 상태를 확인해주세요.', 409);
-    const stamp = { user_id: user.id, username: user.username, at: new Date().toISOString() };
+    const stamp = { user_id: user.id, username: user.username, display_name: user.display_name, at: new Date().toISOString() };
     entry.approval = stage === 1 ? { ...approval, status: 'pending_final', first: stamp } : { ...approval, status: 'approved', final: stamp };
     await tx.execute({ sql: 'UPDATE leave_employee SET entries=?,version=version+1,updated_by=? WHERE id=?', args: [JSON.stringify(entries), user.id, input.employee_id] });
     await tx.execute({ sql: 'INSERT INTO leave_request(id,payload,employee_id,actor_id) VALUES (?,?,?,?)', args: [input.request_id, payload, input.employee_id, user.id] });

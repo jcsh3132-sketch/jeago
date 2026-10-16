@@ -82,7 +82,8 @@ test('both leave administrators can register leave for another employee without 
     const db = await getDb();
     await db.execute({sql:'INSERT INTO leave_admin(user_id) VALUES (?)',args:[manager.id]});
     const current = (await leaveEmployees(token)).find(e=>e.id===employee.id)!;
-    const entry = {id:randomUUID(),start:'2026-09-30',end:'2026-09-30',days:0.5,note:username};
+    const managerDate = username === 'leave.manager.one' ? '2026-09-30' : '2026-10-01';
+    const entry = {id:randomUUID(),start:managerDate,end:managerDate,days:0.5,note:username};
     const request = {employee:{...current,name:username,entries:[...current.entries,entry]},request_id:randomUUID()};
     await saveLeave(token,request);
     await saveLeave(token,request);
@@ -112,7 +113,7 @@ test('leave deducts only after ordered approvals, preserves legacy and prevents 
   const db = await getDb();
   const accounts = [];
   for (const name of ['approval.owner','approval.first','approval.final','approval.outsider']) {
-    const user = await register({username:name,display_name:name,password:'1234',password_confirm:'1234'});
+    const user = await register({username:name,display_name:name==='approval.first'?'김채희':name==='approval.final'?'김대희':name,password:'1234',password_confirm:'1234'});
     accounts.push({...user,token:await createSession(user.id,true)});
   }
   const [owner, first, final, outsider] = accounts;
@@ -153,6 +154,17 @@ test('leave deducts only after ordered approvals, preserves legacy and prevents 
   await approveLeave(final.token,finalRequest);
   await approveLeave(final.token,finalRequest);
   employee = await read();
+  assert.equal(employee.entries.length,2);
+  assert.equal(employee.entries[1].id,newEntry.id);
+  assert.equal(employee.entries[1].approval?.first?.display_name,first.display_name);
+  assert.equal(employee.entries[1].approval?.final?.display_name,final.display_name);
+  await assert.rejects(saveLeave(owner.token,{employee:{...employee,entries:[...employee.entries,{...newEntry,id:randomUUID(),note:''}]},request_id:randomUUID()}),/동일한 날짜/);
+  assert.equal((await read()).entries.length,2);
+  // Historical approvals without a display-name snapshot still resolve by immutable user ID.
+  const persisted = JSON.parse(String((await db.execute({sql:'SELECT entries FROM leave_employee WHERE id=?',args:[employeeId]})).rows[0].entries));
+  delete persisted[1].approval.first.display_name;delete persisted[1].approval.final.display_name;
+  await db.execute({sql:'UPDATE leave_employee SET entries=? WHERE id=?',args:[JSON.stringify(persisted),employeeId]});
+  employee=await read();assert.equal(employee.entries[1].approval?.first?.display_name,first.display_name);
   assert.equal(employee.entries[1].approval?.status,'approved');
   assert.equal(employee.entries[1].approval?.final?.user_id,final.id);
   assert.equal(approvedLeaveDays(employee.entries),1.5);

@@ -1,4 +1,4 @@
-export type LeaveApprovalStamp = { user_id: string; username: string; at: string };
+export type LeaveApprovalStamp = { user_id: string; username: string; display_name?: string; at: string };
 export type LeaveApproval = {
   status: 'pending_first' | 'pending_final' | 'approved';
   submitted_by: string; submitted_at: string;

@@ -6,7 +6,7 @@ type LeaveMutation = { employee: LeaveEmployee; request_id: string } | { action:
 function entryDates(row: LeaveEntry) { return row.start ? row.start === row.end ? row.start : `${row.start} ~ ${row.end}` : '날짜 없는 합산 내역'; }
 function ApprovalDetails({ entry }: { entry: LeaveEntry }) {
   const approval = entry.approval;
-  const stampText = (stamp: NonNullable<typeof approval>['first']) => stamp ? `${stamp.username} · ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(stamp.at))}` : '대기';
+  const stampText = (stamp: NonNullable<typeof approval>['first']) => stamp ? `${stamp.display_name || '승인자'} · ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(stamp.at))}` : '대기';
   return <div className="leave-approval-details"><span className={`leave-approval-badge ${approval?.status || 'approved'}`}>{approvalLabel(entry)}</span>{approval && <p>1차: {stampText(approval.first)}<br/>최종: {stampText(approval.final)}</p>}</div>;
 }
 export function LeaveManager({ initial, today, username, displayName, canEditHistory, approvalStage }: { initial: LeaveEmployee[]; today: string; username: string; displayName: string; canEditHistory: boolean; approvalStage: 1 | 2 | null }) {
@@ -35,6 +35,7 @@ export function LeaveManager({ initial, today, username, displayName, canEditHis
     if (!days || !Number.isFinite(count) || count <= 0 || count * 2 % 1 !== 0) { setMessage('사용 일수는 0.5일 단위로 입력해주세요.'); return null; }
     try { if (start || end) { weekdays(start, end); if (start < draft.hired) throw new Error('사용일은 입사일 이후로 선택해주세요.'); } else if (!note.trim()) throw new Error('날짜 없는 합산 내역에는 설명이 필요합니다.'); }
     catch (error) { setMessage((error as Error).message); return null; }
+    if (start && draft.entries.some(row => row.id !== editing && row.start === start && row.end === end && row.days === count)) { setMessage('동일한 날짜와 일수의 연차 내역이 이미 있습니다. 기존 내역을 확인하거나 수정해주세요.'); return null; }
     const entry = { id: editing || crypto.randomUUID(), start, end, days: count, note };
     return { ...draft, entries: editing ? draft.entries.map(row => row.id === editing ? entry : row) : [...draft.entries, entry] };
   }
