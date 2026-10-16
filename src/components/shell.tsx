@@ -20,7 +20,7 @@ export function Shell({ children, username }: { children: ReactNode; username: s
   return <div className="app-shell"><SessionRenewal/>
     <aside className="app-sidebar"><a href="/" className="brand brand-home" aria-label="시스템 관리 첫 화면 새로고침"><div className="brand-mark">▦</div><div><strong>시스템 관리</strong><span>재고 · 입고 · 출고</span></div></a>
       <nav className="side-nav" aria-label="주 메뉴">{nav.map(([href, icon, text]) => <Link key={href} href={href} className={`side-link ${path === href ? 'active' : ''}`}><span className="nav-icon">{icon}</span><span>{text}</span></Link>)}</nav>
-      <div className="sidebar-footer"><span className="status-dot"/><div><b>내부 운영 시스템</b><small>재고 · 입출고 · 거래처</small></div></div></aside>
+      </aside>
     <nav ref={mobileNav} className="mobile-nav" aria-label="모바일 메뉴">{nav.map(([href, icon, text]) => <Link key={href} href={href} aria-current={path === href ? 'page' : undefined} className={`mobile-nav-link ${path === href ? 'active' : ''}`}><span>{icon}</span><b>{text}</b></Link>)}</nav>
     <section className="app-main"><header className="topbar"><div><p className="eyebrow"><a href="/" className="home-refresh" aria-label="시스템 관리 첫 화면 새로고침">시스템 관리</a></p><h1>{title}</h1><RefreshStatus/></div><div className="top-actions"><Link href="/account" className="account-link" aria-label="내 계정"><span className="account-name">{username}님</span><b>내 계정</b></Link><LogoutButton/><Link href={path === '/leave' ? '/' : '/leave'} className="top-btn primary">{path === '/leave' ? '재고관리' : '연차계산'}</Link></div></header><main className="content-area">{children}</main></section>
   </div>;
