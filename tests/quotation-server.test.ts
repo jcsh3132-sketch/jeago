@@ -11,10 +11,11 @@ test('server quotation works without PC heartbeat, binds owner and remains idemp
  const id=randomUUID();assert.equal((await POST(req(token,{id,kind:'pdf',data:q}))).status,202);
  const result=await(await GET(req(token,undefined,'?id='+id))).json();assert.equal(result.status,'done');assert.equal(Buffer.from(result.result,'base64').subarray(0,4).toString(),'%PDF');
  assert.equal((await POST(req(token,{id,kind:'pdf',data:q}))).status,200);assert.equal((await db.execute('SELECT * FROM quotation_job')).rows.length,1);
+ const direct=req(token,{id:randomUUID(),kind:'pdf',data:q});direct.headers.set('x-quotation-direct','1');const response=await POST(direct);assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'application/pdf');assert.equal(Buffer.from(await response.arrayBuffer()).subarray(0,4).toString(),'%PDF');assert.equal((await db.execute('SELECT * FROM quotation_job')).rows.length,1);
  assert.equal((await POST(req(token,{id:randomUUID(),kind:'send',data:{quote:q,to:'test@example.com',body:'테스트'}}))).status,503);
 });
 test('server PDF renders PNG and produces integer Korean amounts',async()=>{
  assert.equal(koreanAmount(3300000),'삼백삼십만');assert.equal(koreanAmount(1222221),'일백이십이만이천이백이십일');assert.equal(koreanAmount(0),'영');
- const pdf=await quotationPdf(q);const png=await quotationPng(pdf);assert.equal(png.subarray(1,4).toString(),'PNG');
+ const pdf=await quotationPdf(q);assert.strictEqual(await quotationPdf(q),pdf);const png=await quotationPng(pdf);assert.strictEqual(await quotationPng(pdf),png);assert.equal(png.subarray(1,4).toString(),'PNG');
  const blank=await quotationPdf({...q,items:[{name:'',kind:'',qty:'',price:'',note:''}]});assert.ok(blank.length>10000);
 });

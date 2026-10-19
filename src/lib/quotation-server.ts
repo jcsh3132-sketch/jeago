@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {PDFDocument,rgb,type PDFFont} from 'pdf-lib';
@@ -15,7 +16,7 @@ export function koreanAmount(value:number):string{
 }
 let assetPromise:Promise<Buffer[]>|undefined;
 function assets(){return assetPromise??=Promise.all([readFile(asset('template.pdf')),readFile(asset('gulim.ttf'))]);}
-export async function quotationPdf(q:Quote){
+async function createQuotationPdf(q:Quote){
  const [template,fontBytes]=await assets();const pdf=await PDFDocument.load(template);pdf.registerFontkit(fontkit);const font:PDFFont=await pdf.embedFont(fontBytes,{subset:false});const page=pdf.getPages()[0],height=page.getHeight();
  const safe=(value:unknown)=>String(value??'').replace(/[\r\n\t]+/g,' ').replace(/[^\u0020-\u007e\uac00-\ud7a3\u3131-\u318e\u00b7\u20a9\u203b]/g,' ');
  function text(value:unknown,x:number,top:number,width:number,size=10,align:'left'|'center'|'right'='center',black=false){const str=safe(value);if(!str)return;const desired=font.widthOfTextAtSize(str,size);if(desired>width)size*=width/desired;const w=font.widthOfTextAtSize(str,size);page.drawText(str,{x:x+(align==='center'?(width-w)/2:align==='right'?width-w:0),y:height-top-size*.86,font,size,color:black?rgb(0,0,0):rgb(0,.12,.3)});}
@@ -36,7 +37,17 @@ export async function quotationPdf(q:Quote){
  text(`견적담당 : ${q.manager} / 연락처 : ${q.managerPhone} / e-mail : ${q.managerEmail}`,32,773,539,10,'center',true);
  pdf.setTitle(q.title||'견적서');pdf.setAuthor('베스트시스템');return Buffer.from(await pdf.save());
 }
-export async function quotationPng(bytes:Uint8Array){
+const renderCache=new Map<string,{at:number;bytes:Buffer}>();
+const renderPending=new Map<string,Promise<Buffer>>();
+async function cachedRender(key:string,render:()=>Promise<Buffer>){
+ const hit=renderCache.get(key);if(hit&&Date.now()-hit.at<180000)return hit.bytes;
+ const pending=renderPending.get(key);if(pending)return pending;
+ const task=render().then(bytes=>{renderCache.delete(key);renderCache.set(key,{at:Date.now(),bytes});let total=[...renderCache.values()].reduce((n,e)=>n+e.bytes.length,0);while(total>12000000||renderCache.size>16){const first=renderCache.keys().next().value!;total-=renderCache.get(first)!.bytes.length;renderCache.delete(first);}return bytes;}).finally(()=>renderPending.delete(key));
+ renderPending.set(key,task);return task;
+}
+export function quotationPdf(q:Quote){const key='pdf:'+createHash('sha256').update(JSON.stringify(q)).digest('hex');return cachedRender(key,()=>createQuotationPdf(q));}
+export function quotationPng(bytes:Uint8Array){const key='png:'+createHash('sha256').update(bytes).digest('hex');return cachedRender(key,()=>createQuotationPng(bytes));}
+async function createQuotationPng(bytes:Uint8Array){
  const canvas=await import('@napi-rs/canvas');Object.assign(globalThis,{DOMMatrix:canvas.DOMMatrix,ImageData:canvas.ImageData,Path2D:canvas.Path2D});
  const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');const task=pdfjs.getDocument({data:new Uint8Array(bytes),useSystemFonts:false,disableFontFace:true});const doc=await task.promise;
  try{const page=await doc.getPage(1);const viewport=page.getViewport({scale:1800/595.2});const image=canvas.createCanvas(Math.ceil(viewport.width),Math.ceil(viewport.height));await page.render({canvas:image as never,canvasContext:image.getContext('2d') as never,viewport}).promise;return image.toBuffer('image/png');}finally{await task.destroy();}
