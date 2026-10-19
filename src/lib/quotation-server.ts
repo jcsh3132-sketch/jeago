@@ -23,10 +23,11 @@ async function createQuotationPdf(q:Quote){
  text('F. 051-504-2243',30,58,170,8,'left');
  text(q.number,86,141,115,10);for(const [i,key] of (['recipient','reference','phone','fax','email'] as const).entries())text(q[key],82,160+i*18.96,120,10);
  text(q.date,85,254,177,10);
+ const kindFontSize=Math.min(10,...q.items.map(item=>{const str=safe(item.kind);const width=str?font.widthOfTextAtSize(str,10):0;return width>51?10*51/width:10;}));
  let subtotal=0;
  for(let row=0;row<12;row++){
   const item=q.items[row],top=330.5+row*18.96;
-  if(item){const amount=Number(item.qty)*Number(item.price);subtotal+=amount;text(item.name,88,top,173,10,'center',true);text(item.kind,265,top,51);text(item.qty,320,top,46);text(item.price===''?'':Number(item.price).toLocaleString('en-US'),371,top,62);text(amount?amount.toLocaleString('en-US'):'-',437,top,66);text(item.note,508,top,63);}
+  if(item){const amount=Number(item.qty)*Number(item.price);subtotal+=amount;text(item.name,88,top,173,10,'center',true);text(item.kind,265,top,51,kindFontSize);text(item.qty,320,top,46);text(item.price===''?'':Number(item.price).toLocaleString('en-US'),371,top,62);text(amount?amount.toLocaleString('en-US'):'-',437,top,66);text(item.note,508,top,63);}
   else text('-',437,top,66);
  }
  const tax=Math.round(subtotal*.1),total=subtotal+tax;if(!Number.isSafeInteger(total))throw Error('INVALID_AMOUNT');
