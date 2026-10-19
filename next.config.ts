@@ -1,13 +1,13 @@
 import type { NextConfig } from 'next';
 const config: NextConfig = {
-  serverExternalPackages: ['@libsql/client'],
+  serverExternalPackages: ['@libsql/client','pdfjs-dist','@napi-rs/canvas'],
   // Apply only to route bundles; '*' also matches Next's internal server trace
   // where substring matching would incorrectly exclude its "framework" folder.
   outputFileTracingExcludes: {
     '/*': ['./work/**/*', './instance/**/*', './.env*', './android/**/*', './tests/**/*'],
     '/calculator/content*': ['./src/calculator/index.html', './src/calculator/style.css', './src/calculator/script.js', './src/calculator/catalog.json', './src/calculator/README.md'],
   },
-  outputFileTracingIncludes: { '/quotation/content/*': ['./src/quotation/**/*'], '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content*': ['./src/calculator/api-settings.html', './src/calculator/integration.css', './src/calculator/api-settings.js', './src/calculator/price-table.js'] },
+  outputFileTracingIncludes: { '/api/quotation': ['./src/quotation-server/**/*','./src/quotation/cards/**/*','./src/quotation/best_logo.jpg','./node_modules/pdfjs-dist/legacy/build/**/*','./node_modules/@napi-rs/canvas/**/*','./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*'], '/quotation/content/*': ['./src/quotation/**/*'], '/*': ['./node_modules/next/dist/lib/framework/*.js'], '/calculator/content*': ['./src/calculator/api-settings.html', './src/calculator/integration.css', './src/calculator/api-settings.js', './src/calculator/price-table.js'] },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
