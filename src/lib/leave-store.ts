@@ -1,3 +1,4 @@
+import {pushDb,queueLeavePush} from './leave-push';
 import { createHash } from 'node:crypto';
 import { getDb } from './db';
 import { sessionUser, AuthError } from './auth';
@@ -47,7 +48,7 @@ export async function saveLeave(token: string | undefined, input: Record<string,
     return { id: entry.id, start: entry.start, end: entry.end, days: entry.days, note: entry.note.trim() };
   });
   const payload = createHash('sha256').update(JSON.stringify({ user: user.id, employee: f })).digest('hex');
-  const tx = await (await getDb()).transaction('write');
+  const tx = await (await pushDb()).transaction('write');
   try {
     const admin = await isLeaveAdministrator(user.id, tx);
     const current = (await tx.execute({ sql: 'SELECT version,user_id,entries,name FROM leave_employee WHERE id=?', args: [f.id] })).rows[0];
@@ -80,6 +81,7 @@ export async function saveLeave(token: string | undefined, input: Record<string,
     if (current) await tx.execute({ sql: 'UPDATE leave_employee SET name=?,position=?,hired=?,special=?,entries=?,version=version+1,updated_by=? WHERE id=?', args: [current.user_id === user.id ? user.display_name : String(current.name), f.position.trim(), f.hired, f.special, JSON.stringify(entries), user.id, f.id] });
     else await tx.execute({ sql: 'INSERT INTO leave_employee(id,name,position,hired,special,entries,version,updated_by,user_id) VALUES (?,?,?,?,?,?,1,?,?)', args: [f.id, user.display_name, f.position.trim(), f.hired, f.special, JSON.stringify(entries), user.id, user.id] });
     await tx.execute({ sql: 'INSERT INTO leave_request(id,payload,employee_id,actor_id) VALUES (?,?,?,?)', args: [input.request_id, payload, f.id, user.id] });
+    for (const entry of entries) { const old=previous.find(item=>item.id===entry.id); if(!old||entryChanged(entry,old)) await queueLeavePush(tx,f.id,entry.id,1,submittedAt); }
     await tx.commit();
   } catch (error) { if (!tx.closed) await tx.rollback(); throw error; } finally { tx.close(); }
 }
@@ -89,7 +91,7 @@ export async function approveLeave(token: string | undefined, input: Record<stri
   if (!user) throw new AuthError('로그인이 필요합니다.', 401);
   if (input.action !== 'approve' || typeof input.employee_id !== 'string' || !uuid.test(input.employee_id) || typeof input.entry_id !== 'string' || !uuid.test(input.entry_id) || typeof input.request_id !== 'string' || !uuid.test(input.request_id) || !Number.isSafeInteger(input.version) || Number(input.version) < 0 || (input.stage !== 1 && input.stage !== 2)) throw new AuthError('승인 요청을 확인해주세요.');
   const payload = createHash('sha256').update(JSON.stringify({ action: 'approve', user: user.id, employee: input.employee_id, entry: input.entry_id, stage: input.stage, version: input.version })).digest('hex');
-  const tx = await (await getDb()).transaction('write');
+  const tx = await (await pushDb()).transaction('write');
   try {
     const stage = await leaveApprovalStage(user.id, tx);
     if (!stage || stage !== input.stage) throw new AuthError('해당 단계의 지정 승인자만 승인할 수 있습니다.', 403);
@@ -107,6 +109,7 @@ export async function approveLeave(token: string | undefined, input: Record<stri
     entry.approval = stage === 1 ? { ...approval, status: 'pending_final', first: stamp } : { ...approval, status: 'approved', final: stamp };
     await tx.execute({ sql: 'UPDATE leave_employee SET entries=?,version=version+1,updated_by=? WHERE id=?', args: [JSON.stringify(entries), user.id, input.employee_id] });
     await tx.execute({ sql: 'INSERT INTO leave_request(id,payload,employee_id,actor_id) VALUES (?,?,?,?)', args: [input.request_id, payload, input.employee_id, user.id] });
+    if(stage===1) await queueLeavePush(tx,String(input.employee_id),String(input.entry_id),2,approval.submitted_at);
     await tx.commit();
   } catch (error) { if (!tx.closed) await tx.rollback(); throw error; } finally { tx.close(); }
 }

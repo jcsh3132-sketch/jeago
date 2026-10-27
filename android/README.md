@@ -1,4 +1,4 @@
-# 재고 관리 Android
+# 시스템 관리 Android
 
 `https://jeago.vercel.app/`를 앱 내부 WebView로 표시하는 Android 앱입니다. 1.2.0부터 브라우저 주소창과 별도 시작 화면 없이 바로 재고 관리 화면을 엽니다. 휴대폰의 시계·배터리·시스템 탐색 영역은 유지합니다. Android 6.0 이상과 인터넷 연결이 필요하며, Android System WebView와 Chrome을 최신 상태로 유지하세요. 일반 브라우저에서 사이트를 직접 여는 경우에는 브라우저 주소창이 표시됩니다.
 
@@ -18,7 +18,7 @@ Java 17, Android Platform 35, Android Build Tools 35.0.0을 `work/android-tools`
 powershell -ExecutionPolicy Bypass -File android/build.ps1
 ```
 
-결과는 `work/android-output/jeago-1.2.0.apk`입니다. 이전 버전과 같은 서명 키와 패키지를 사용하므로 기존 앱 위에 업데이트로 설치할 수 있습니다. 빌드 시 20개 URL 탐색 정책 사례, APK 서명, 정렬, 패키지·버전·SDK 메타데이터를 검증합니다. 실제 휴대폰 설치·실행 확인은 별도로 필요합니다.
+결과는 `work/android-output/jeago-1.3.0.apk`입니다. 이전 버전과 같은 서명 키와 패키지를 사용하므로 기존 앱 위에 업데이트로 설치할 수 있습니다. 빌드 시 20개 URL 탐색 정책 사례, APK 서명, 정렬, 패키지·버전·SDK 메타데이터를 검증합니다. 실제 휴대폰 설치·실행 확인은 별도로 필요합니다.
 
 실기기 확인 항목: 기존 앱 위 업데이트 설치 → 주소창 없이 로그인 표시 → 키보드를 열어 입력/회원가입 → 자동로그인 선택 후 앱 종료·재실행 → 재고 페이지 이동/뒤로가기 → 화면 회전 → 삭제 확인 대화상자의 취소 → 오프라인 실행 후 연결을 복구하고 다시 시도 → 로그인 만료 후 별도 로그인 화면에서 원래 작업으로 복귀. Android 15 이상의 제스처 탐색과 구형 Android의 버튼 탐색을 모두 확인하세요. 재고 변경이 필요한 검증은 테스트 계정과 테스트 데이터에서 수행하세요.
 
@@ -27,3 +27,15 @@ powershell -ExecutionPolicy Bypass -File android/build.ps1
 기존 키를 복원할 때는 `jeago-release.p12`, `keystore-password.txt`를 `work/android-signing`에 함께 복사합니다. 키 별칭은 `jeago`입니다. 서명 인증서 SHA-256은 `90e3aad0c00b64559a0ab5603f5934fafd7439e11ba2b1762eee378375730833`입니다. 키 백업 ZIP은 관리자만 보관하고 APK 사용자에게 공유하지 마세요.
 
 구현 참고: [Android WebView 공식 문서](https://developer.android.com/develop/ui/views/layout/webapps/webview).
+
+
+## 1.3.0 연차 승인 푸시
+
+- Firebase 프로젝트: `jeago-leave`, Android 패키지는 기존과 동일합니다.
+- Gradle 8.13, JDK 17, 기존 Android SDK 35를 사용합니다. 푸시 SDK는 Firebase Messaging만 포함하고 Analytics SDK는 포함하지 않습니다.
+- `work/android-firebase/google-services.json`을 준비한 뒤 `android/build.ps1`로 최종 빌드합니다. 파일이 없으면 최종 빌드를 중단합니다.
+- 서버는 `FCM_SERVICE_ACCOUNT_JSON` 비밀 환경변수가 필요합니다. 서비스 계정은 맞춤 역할 `jeagoLeavePushSender`의 `cloudmessaging.messages.create` 권한 하나만 사용합니다. 키는 APK와 Git에 포함하면 안 됩니다. 등록된 인증서는 2027-10-27 만료되므로 그 전에 교체하세요.
+- 로그인한 지정 승인자에게만 알림 권한을 요청하고, 일반 직원은 알림 기기를 등록할 수 없습니다.
+- 1차 대상에게 신청 알림, 최종 대상에게 1차 승인 완료 알림을 보냅니다. 이름·날짜·사유는 푸시 데이터에 넣지 않습니다.
+- 수신 시 현재 로그인과 승인 상태를 재검증하고, 로그아웃·계정 변경·이미 승인된 요청은 표시하지 않습니다.
+- Firebase Android 구성과 Vercel 비밀 환경변수 연결을 완료했고, Google OAuth 및 FCM validate_only 검증이 통과했습니다. 실제 휴대폰에서는 업데이트 설치 후 지정 승인자로 자동로그인하고 알림을 허용하여 수신을 확인하세요. 앱 강제 중지·로그아웃·알림 차단 상태에서는 수신되지 않습니다.

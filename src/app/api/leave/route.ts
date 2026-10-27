@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {dispatchLeavePush} from '@/lib/leave-push';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { AuthError, SESSION_COOKIE } from '@/lib/auth';
 import { approveLeave, leaveEmployees, saveLeave } from '@/lib/leave-store';
 export const runtime = 'nodejs';
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     if (input.action === 'approve') await approveLeave(request.cookies.get(SESSION_COOKIE)?.value, input);
     else if (input.action === undefined) await saveLeave(request.cookies.get(SESSION_COOKIE)?.value, input);
     else throw new AuthError('지원하지 않는 연차 요청입니다.');
+    if(process.env.JEAGO_TEST_MODE!=='1')after(dispatchLeavePush);
     return NextResponse.json({ ok: true }, { headers });
   } catch (error) { return failure(error); }
 }

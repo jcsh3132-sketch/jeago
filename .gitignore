@@ -17,3 +17,7 @@ work/
 *.keystore
 keystore-password.txt
 *signing-key-backup*.zip
+
+android/.gradle/
+android/local.properties
+android/google-services.json

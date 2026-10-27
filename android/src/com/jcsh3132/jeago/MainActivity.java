@@ -50,7 +50,7 @@ public final class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         mainPage = new Page(false);
         root.addView(mainPage.container, fill());
-        if (state == null || mainPage.web.restoreState(state) == null) mainPage.web.loadUrl(NavigationPolicy.SITE);
+        if (state == null || mainPage.web.restoreState(state) == null) mainPage.web.loadUrl(getIntent().getBooleanExtra("open_leave",false)?NavigationPolicy.SITE+"leave":NavigationPolicy.SITE);
         root.requestApplyInsets();
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
             android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::navigateBack);
@@ -122,6 +122,7 @@ public final class MainActivity extends Activity {
                 @Override public void onPageFinished(WebView view, String url) {
                     progress.setVisibility(View.GONE);
                     CookieManager.getInstance().flush();
+                    LeavePush.pageLoaded(MainActivity.this);
                 }
                 @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError failure) {
                     if (request.isForMainFrame()) showError();
@@ -194,7 +195,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
-        if (mainPage != null) mainPage.web.onResume();
+        if (mainPage != null) { mainPage.web.onResume(); LeavePush.sync(this); }
         if (loginPage != null) loginPage.web.onResume();
     }
     @Override protected void onDestroy() {
@@ -202,5 +203,7 @@ public final class MainActivity extends Activity {
         if (mainPage != null) mainPage.web.destroy();
         super.onDestroy();
     }
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("open_leave",false)&&mainPage!=null)mainPage.web.loadUrl(NavigationPolicy.SITE+"leave");}
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results){super.onRequestPermissionsResult(requestCode,permissions,results);if(requestCode==73)LeavePush.permissionResult(this);}
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }
